@@ -1,0 +1,20 @@
+import * from range;
+
+fn<T> println(obj: 'T [Printable]) {
+    print(fwd<'T>(obj));
+    print("\n");
+}
+
+fn print_bit(board: &Int, bit: Int) {
+    print((board >> bit) & 1);
+}
+
+fn print_bitboard(board: &Int) {
+    for b in range(1, 65) {
+        print_bit(board, 64 - b);
+        
+        if b % 8 == 0 {
+            print("\n");
+        }
+    }
+}

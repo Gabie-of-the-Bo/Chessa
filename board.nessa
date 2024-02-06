@@ -1,0 +1,454 @@
+import * from range;
+import * from string_extensions;
+
+import * from /bitboard;
+import * from /moves;
+import * from /printing;
+
+class Player {
+    // Castling
+    queen_cast: Bool;
+    king_cast: Bool;
+
+    // Bitboards
+    pawn: Int;
+    rook: Int;
+    knight: Int;
+    bishop: Int;
+    queen: Int;
+    king: Int;
+}
+
+class Board {
+    white_moves: Bool;
+    move_counter: Int;
+    halfmove_counter: Int;
+    en_passant_mask: Int;
+
+    white: Player;
+    black: Player;
+}
+
+fn new_board() -> Board {
+    return Board(
+        true, 0, 1, 0,
+        Player(
+            true, true,
+            0x000000000000FF00, 
+            0x0000000000000081, 
+            0x0000000000000042, 
+            0x0000000000000024, 
+            0x0000000000000010, 
+            0x0000000000000008
+        ),
+
+        Player(
+            true, true,
+            0x00FF000000000000, 
+            0x8100000000000000, 
+            0x4200000000000000, 
+            0x2400000000000000, 
+            0x1000000000000000,
+            0x0800000000000000
+        )
+    );
+}
+
+fn board_from_fen(str: String) -> Board {
+    let res = Board(
+        true, 0, 0, 0,
+        Player(false, false, 0, 0, 0, 0, 0, 0),
+        Player(false, false, 0, 0, 0, 0, 0, 0)
+    );
+
+    let state = 0;
+    let row = 7;
+    let col = 7;
+    let en_passant_row = 0;
+    let en_passant_col = 0;
+
+    for char in str.demut().code_points() {
+        if char == ' ' {
+            state := state + 1;
+        
+        } else if state == 0 { // Pieces
+            if char == '/' {
+                col := 7;
+                row := row - 1;
+            
+            } else if char >= '0' && char <= '9' {
+                let offset = char - '0';
+                col := col - offset;
+
+            } else {
+                let bitboard = res.board_by_letter(*char);
+                
+                bitboard := bitboard | bitboard_from_coords(*row, *col);
+                col := col - 1;
+            }
+        
+        } else if state == 1 { // Current move
+            res.white_moves() := char == 'w';
+        
+        } else if state == 2 { // Castling
+            if char == 'k' {
+                res.black().king_cast() := true;
+            
+            } else if char == 'q' {
+                res.black().queen_cast() := true;
+            
+            } else if char == 'K' {
+                res.white().king_cast() := true;
+            
+            } else if char == 'Q' {
+                res.white().queen_cast() := true;
+            }
+        
+        } else if state == 3 {
+            if char >= 'a' && char <= 'h' {
+                en_passant_col = char - 'a';
+
+            } else if char >= '0' && char <= '1' {
+                en_passant_row = char - '1';
+                res.en_passant_mask() := bitboard_from_coords(*en_passant_row, 8 - en_passant_col);
+            }
+        
+        } else if state == 4 {
+            let offset = char - '0';
+            res.halfmove_counter() := res.halfmove_counter() * 10 + offset;
+        
+        } else if state == 5 {
+            let offset = char - '0';
+            res.move_counter() := res.move_counter() * 10 + offset;
+        }
+    }
+
+    return move(res);
+}
+
+fn bitmask(p: &Player) -> Int {
+    return p.pawn() | p.rook() | p.knight() | 
+           p.bishop() | p.queen() | p.king();
+}
+
+fn current_player(board: @Board) -> @Player {
+    if *board.white_moves() {
+        return board.white();
+    }
+
+    return board.black();
+}
+
+fn current_opponent(board: @Board) -> @Player {
+    if *board.white_moves() {
+        return board.black();
+    }
+
+    return board.white();
+}
+
+fn board_by_piece(player: @Player, piece: Int) -> @Int {
+    if piece == 0 {
+        return player.pawn();
+    
+    } else if piece == 1 {
+        return player.rook();
+
+    } else if piece == 2 {
+        return player.knight();
+
+    } else if piece == 3 {
+        return player.bishop();
+
+    } else if piece == 4 {
+        return player.queen();
+
+    } else {
+        return player.king();
+    }
+}
+
+fn board_by_mask(player: @Player, mask: Int) -> @Int {
+    if mask & player.pawn() != 0 {
+        return player.pawn();
+    
+    } else if mask & player.rook() != 0 {
+        return player.rook();
+
+    } else if mask & player.knight() != 0 {
+        return player.knight();
+
+    } else if mask & player.bishop() != 0 {
+        return player.bishop();
+
+    } else if mask & player.queen() != 0 {
+        return player.queen();
+
+    } else {
+        return player.king();
+    }
+}
+
+fn board_by_letter(board: @Board, piece: Int) -> @Int {
+    if piece == 'P' {
+        return board.white().pawn();
+    
+    } else if piece == 'R' {
+        return board.white().rook();
+
+    } else if piece == 'N' {
+        return board.white().knight();
+
+    } else if piece == 'B' {
+        return board.white().bishop();
+
+    } else if piece == 'Q' {
+        return board.white().queen();
+
+    } else if piece == 'K' {
+        return board.white().king();
+
+    } else if piece == 'p' {
+        return board.black().pawn();
+    
+    } else if piece == 'r' {
+        return board.black().rook();
+
+    } else if piece == 'n' {
+        return board.black().knight();
+
+    } else if piece == 'b' {
+        return board.black().bishop();
+
+    } else if piece == 'q' {
+        return board.black().queen();
+
+    } else if piece == 'k' {
+        return board.black().king();
+    }
+
+    panic("Invalid letter");
+
+    return 0.mut();
+}
+
+fn make_move(board: @Board, move: &Move) {
+    let player = board.current_player();
+    let opponent = board.current_opponent();
+    let affected_board = player.board_by_piece(*move.piece());
+    
+    board.en_passant_mask() := 0;
+
+    // Increase move counter
+    if !board.white_moves() {
+        board.move_counter() := board.move_counter() + 1;
+    }
+
+    // Reset halfmove on pawn move
+    if move.piece() == 1 {
+        board.halfmove_counter() := 0;
+    }
+
+    // Simple move
+    if move.type() < 4 {
+        let from_bb = bitboard_from_coords(*move.from_row(), *move.from_col());
+        let to_bb = bitboard_from_coords(*move.to_row(), *move.to_col());
+
+        affected_board := affected_board ^ (from_bb | to_bb);
+
+        let attack = *to_bb;
+
+        // Delete en passant piece
+        if move.type() == 3  {
+            attack = bitboard_from_coords(*move.from_row(), *move.to_col());
+        }
+        
+        // On capture
+        if opponent.demut().bitmask() & attack != 0 {
+            board.halfmove_counter() := 0;
+
+            // Remove captured piece
+            let capture_board = opponent.board_by_mask(*attack);
+            capture_board := capture_board ^ attack;
+        }
+
+        // Set en passant mask
+        if move.type() == 1 {
+            board.en_passant_mask() := bitboard_from_coords((move.to_row() + move.from_row()) / 2, *move.to_col());
+        }
+
+        // King movement
+        if move.piece() == 5 {
+            player.king_cast() := false;
+            player.queen_cast() := false;
+        }
+
+        // Rook movement
+        if move.piece() == 1 {
+            if from_bb == 1 {
+                player.king_cast() := false;
+            
+            } else {
+                player.queen_cast() := false;
+            }
+        }
+
+    } else {
+        // Castling
+        if move.from_row() == 0 && move.from_col() == 0 {
+            player.rook() := player.rook() ^ 5;
+            player.king() := player.king() ^ 10;
+        
+        } else if move.from_row() == 0 && move.from_col() == 7 {
+            player.rook() := player.rook() ^ 144;
+            player.king() := player.king() ^ 40;
+        
+        } else if move.from_row() == 7 && move.from_col() == 0 {
+            player.rook() := player.rook() ^ 360287970189639680;
+            player.king() := player.king() ^ 720575940379279360;
+        
+        } else if move.from_row() == 7 && move.from_col() == 7 {
+            player.rook() := player.rook() ^ 10376293541461622784;
+            player.king() := player.king() ^ 2882303761517117440;        
+        }
+
+        player.king_cast() := false;
+        player.queen_cast() := false;
+    }
+
+    // Change turn
+    board.white_moves() := !board.white_moves();
+}
+
+fn parse_move(str: String) -> Move {
+    let array = str.utf8_array();
+
+    let col_from = array[2] - 'a';
+    let col_to = array[4] - 'a';
+
+    return Move(
+        array[0] - '0',
+        array[1] - '0',
+        array[3] - '1',
+        7 - col_from,
+        array[5] - '1',
+        7 - col_to
+    );
+}
+
+fn print(board: &Board) {
+    let arr_board = arr<Array<String>>();
+
+    // Turn
+    print("Turn: ");
+    
+    if *board.white_moves() {
+        println("White");
+
+    } else {
+        println("Black");
+    }
+    
+    // Castling
+    print("Castling: ");
+
+    if *board.white().queen_cast() {
+        print("Q");
+    }
+    
+    if *board.white().king_cast() {
+        print("K");
+    }
+    
+    if *board.black().queen_cast() {
+        print("q");
+    }
+    
+    if *board.black().king_cast() {
+        print("k");
+    }
+
+    // En passant
+    print("\nEn passant: ");
+    
+    if board.en_passant_mask() == 0 {
+        print("-");
+    
+    } else {
+        let pos = first_set_bit(*board.en_passant_mask());
+
+        print(code_point_to_str((7 - pos % 8) + 'a'));
+        print((pos / 8) + 1);
+    }
+
+    // Halfmove
+    print("\nHalfmoves: ");
+    print(*board.halfmove_counter());
+
+    // Halfmove
+    print("\nMoves: ");
+    print(*board.move_counter());
+
+    println("\n+--------+");    
+
+    // Create 8x8 matrix
+    for i in range(0, 8) {
+        let row = arr<String>();
+
+        for j in range(0, 8) {
+            row.push(" ");
+        }
+        
+        arr_board.push(move(row));
+    }
+
+    let reps = arr<(&Int, String)>();
+
+    // White pieces
+    reps.push((board.white().pawn(), "P"));
+    reps.push((board.white().rook(), "R"));
+    reps.push((board.white().knight(), "N"));
+    reps.push((board.white().bishop(), "B"));
+    reps.push((board.white().queen(), "Q"));
+    reps.push((board.white().king(), "K"));
+
+    // Black pieces
+    reps.push((board.black().pawn(), "p"));
+    reps.push((board.black().rook(), "r"));
+    reps.push((board.black().knight(), "n"));
+    reps.push((board.black().bishop(), "b"));
+    reps.push((board.black().queen(), "q"));
+    reps.push((board.black().king(), "k"));
+
+    // Fill matrix
+    for piece in reps {
+        for row in range(0, 8) {
+            for col in range(0, 8) {
+                if piece.get_0().deref().get_pos(*row, *col) == 1 {
+                    arr_board[7 - row].set(*piece.get_1(), 7 - col);
+                }
+            }
+        }
+    }
+
+    let idx = 8;
+
+    for row in arr_board {
+        print("|");
+
+        for col in row {
+            print(*col);
+        }
+
+        print("|");
+        print(*idx);
+        print("\n");
+
+        idx := idx - 1;
+    }
+    
+    println("+--------+");
+    println(" abcdefgh");
+}
+
+implement Printable for &Board;

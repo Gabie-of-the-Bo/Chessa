@@ -1,0 +1,16 @@
+import * from /printing;
+import * from /board;
+import * from /moves;
+import * from /bitboard;
+
+let board = board_from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+
+while true {
+    print(board.demut());
+    print("Move: ");
+    
+    let move = parse_move(input());
+    board.make_move(move.demut());
+
+    print("\n");
+}
