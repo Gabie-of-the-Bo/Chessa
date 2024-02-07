@@ -1,16 +1,25 @@
+import * from hashmap;
+
 import * from /printing;
 import * from /board;
 import * from /moves;
 import * from /bitboard;
 
 let board = board_from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+let all_moves_white = get_all_moves(true);
+let all_moves_black = get_all_moves(false);
 
-while true {
+for i in range(0, 1000) {
     print(board.demut());
-    print("Move: ");
-    
-    let move = parse_move(input());
-    board.make_move(move.demut());
+    input();
 
-    print("\n");
+    if *board.white_moves() {
+        let moves = board.generate_pseudo_legal_moves(all_moves_white);
+        board.make_move(moves[rand_int(0, moves.len() - 1)].demut());
+
+    } else {
+        let moves = board.generate_pseudo_legal_moves(all_moves_black);
+        board.make_move(moves[rand_int(0, moves.len() - 1)].demut());
+    }
 }
+

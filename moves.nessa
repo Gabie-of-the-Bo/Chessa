@@ -1,11 +1,18 @@
 import * from range;
+import * from hashmap;
+
+import * from /bitboard;
+import * from /printing;
 
 class Move {
     // In order: Pawn, rook, knight, bishop, queen, king
     piece: Int;
 
-    // In order: Normal, double pawn push, only capture, en passant, castling
+    // In order: Normal, double pawn push, only capture, en passant, castling, prm. queen, prm. rook, prm. bishop, prm. knight
     type: Int;
+
+    // Movement mask. Its meaning depends on the context
+    mask: Int;
 
     // Bottom (White) to top (Black), right to left
     from_row: Int;
@@ -15,24 +22,46 @@ class Move {
     to_col: Int;
 }
 
-fn white_pawn_moves() -> Array<Move> {
+fn pawn_moves(white: Bool) -> Array<Move> {
     let res = arr<Move>();
+
+    let movement_dir = 1;
+
+    if !white {
+        movement_dir := -1;
+    }
 
     for row in range(1, 7) {
         for col in range(0, 8) {
-            res.push(Move(0, 0, *row, *col, row + 1, *col));
+            let to_mask = bitboard_from_coords(*row + movement_dir, *col);
 
             // Double mov in row 1
-            if row == 1 {
-                res.push(Move(0, 1, *row, *col, row + 2, *col));
+            if (white && row == 1) || (!white && row == 6) {
+                let to_mask_2 = bitboard_from_coords(*row + movement_dir * 2, *col);
+                res.push(Move(0, 1, to_mask | to_mask_2, *row, *col, row + movement_dir * 2, *col));
             }
 
+            // Promotions
+            if (white && row == 6) || (!white && row == 1) {
+                res.push(Move(0, 5, *to_mask, *row, *col, row + movement_dir, *col));
+                res.push(Move(0, 6, *to_mask, *row, *col, row + movement_dir, *col));
+                res.push(Move(0, 7, *to_mask, *row, *col, row + movement_dir, *col));
+                res.push(Move(0, 8, *to_mask, *row, *col, row + movement_dir, *col));
+            
+            } else {
+                // Simple move
+                res.push(Move(0, 0, *to_mask, *row, *col, row + movement_dir, *col));
+            }
+
+            // Attack moves
             if col > 0 {
-                res.push(Move(0, 2, *row, *col, row + 1, *col - 1));
+                let attack_mask = bitboard_from_coords(row + movement_dir, *col - 1);
+                res.push(Move(0, 2, *attack_mask, *row, *col, row + movement_dir, *col - 1));
             }
 
             if col < 7 {
-                res.push(Move(0, 2, *row, *col, row + 1, *col + 1));
+                let attack_mask = bitboard_from_coords(row + movement_dir, *col + 1);
+                res.push(Move(0, 2, *attack_mask, *row, *col, row + movement_dir, *col + 1));
             }
         }
     }
@@ -40,18 +69,26 @@ fn white_pawn_moves() -> Array<Move> {
     return move(res);
 }
 
-fn white_rook_moves() -> Array<Move> {
+fn is_pawn_move_legal(mov: @Move, p_mask: @Int, o_mask: @Int) -> Bool {
+    if mov.type() == 2 {
+        return o_mask & mov.mask() != 0;
+    }
+    
+    return mov.mask() & (p_mask | o_mask) == 0;
+}
+
+fn rook_moves() -> Array<Move> {
     let res = arr<Move>();
 
     for row in range(0, 8) {
         for col in range(0, 8) {
             for mov in range(0, 8) {
                 if mov != row {
-                    res.push(Move(1, 0, *row, *col, *mov, *col));
+                    res.push(Move(1, 0, get_sliding_mask(*row, *col, *mov, *col), *row, *col, *mov, *col));
                 }
 
                 if mov != col {
-                    res.push(Move(1, 0, *row, *col, *row, *mov));
+                    res.push(Move(1, 0, get_sliding_mask(*row, *col, *row, *mov), *row, *col, *row, *mov));
                 }
             }
         }
@@ -60,7 +97,18 @@ fn white_rook_moves() -> Array<Move> {
     return move(res);
 }
 
-fn white_knight_moves() -> Array<Move> {
+fn is_rook_move_legal(mov: @Move, p_mask: @Int, o_mask: @Int) -> Bool {
+    // TODO: castling
+
+    // Cannot move to a square with a piece you have
+    if p_mask & bitboard_from_coords(*mov.to_row(), *mov.to_col()) != 0 {
+        return false;
+    }
+    
+    return mov.mask() & (p_mask | o_mask) == 0;
+}
+
+fn knight_moves() -> Array<Move> {
     let res = arr<Move>();
     let offsets = arr<(Int, Int)>();
 
@@ -83,7 +131,7 @@ fn white_knight_moves() -> Array<Move> {
                 let target_col = col + off_col;
 
                 if target_row >= 0 && target_row < 8 && target_col >= 0 && target_col < 8 {
-                    res.push(Move(2, 0, *row, *col, *target_row, *target_col));
+                    res.push(Move(2, 0, 0, *row, *col, *target_row, *target_col));
                 }
             }
         }
@@ -92,7 +140,11 @@ fn white_knight_moves() -> Array<Move> {
     return move(res);
 }
 
-fn white_bishop_moves() -> Array<Move> {
+fn is_knight_move_legal(mov: @Move, p_mask: @Int, o_mask: @Int) -> Bool {    
+    return p_mask & bitboard_from_coords(*mov.to_row(), *mov.to_col()) == 0;
+}
+
+fn bishop_moves() -> Array<Move> {
     let res = arr<Move>();
     let offsets = arr<(Int, Int)>();
 
@@ -113,7 +165,7 @@ fn white_bishop_moves() -> Array<Move> {
                 let target_col = col + off_col;
 
                 if target_row >= 0 && target_row < 8 && target_col >= 0 && target_col < 8 {
-                    res.push(Move(3, 0, *row, *col, *target_row, *target_col));
+                    res.push(Move(3, 0, get_sliding_mask(*row, *col, *target_row, *target_col), *row, *col, *target_row, *target_col));
                 }
             }
         }
@@ -122,7 +174,16 @@ fn white_bishop_moves() -> Array<Move> {
     return move(res);
 }
 
-fn white_queen_moves() -> Array<Move> {
+fn is_bishop_move_legal(mov: @Move, p_mask: @Int, o_mask: @Int) -> Bool {
+    // Cannot move to a square with a piece you have
+    if p_mask & bitboard_from_coords(*mov.to_row(), *mov.to_col()) != 0 {
+        return false;
+    }
+    
+    return mov.mask() & (p_mask | o_mask) == 0;
+}
+
+fn queen_moves() -> Array<Move> {
     let res = arr<Move>();
     let offsets = arr<(Int, Int)>();
 
@@ -147,7 +208,7 @@ fn white_queen_moves() -> Array<Move> {
                 let target_col = col + off_col;
 
                 if target_row >= 0 && target_row < 8 && target_col >= 0 && target_col < 8 {
-                    res.push(Move(4, 0, *row, *col, *target_row, *target_col));
+                    res.push(Move(4, 0, get_sliding_mask(*row, *col, *target_row, *target_col), *row, *col, *target_row, *target_col));
                 }
             }
         }
@@ -156,7 +217,16 @@ fn white_queen_moves() -> Array<Move> {
     return move(res);
 }
 
-fn white_king_moves() -> Array<Move> {
+fn is_queen_move_legal(mov: @Move, p_mask: @Int, o_mask: @Int) -> Bool {
+    // Cannot move to a square with a piece you have
+    if p_mask & bitboard_from_coords(*mov.to_row(), *mov.to_col()) != 0 {
+        return false;
+    }
+    
+    return mov.mask() & (p_mask | o_mask) == 0;
+}
+
+fn king_moves() -> Array<Move> {
     let res = arr<Move>();
     let offsets = arr<(Int, Int)>();
 
@@ -179,11 +249,145 @@ fn white_king_moves() -> Array<Move> {
                 let target_col = col + off_col;
 
                 if target_row >= 0 && target_row < 8 && target_col >= 0 && target_col < 8 {
-                    res.push(Move(5, 0, *row, *col, *target_row, *target_col));
+                    res.push(Move(5, 0, 0, *row, *col, *target_row, *target_col));
                 }
             }
         }
     }
 
     return move(res);
+}
+
+fn is_king_move_legal(mov: @Move, p_mask: @Int, o_mask: @Int) -> Bool {    
+    return p_mask & bitboard_from_coords(*mov.to_row(), *mov.to_col()) == 0;
+}
+
+fn get_all_moves(white: Bool) -> HashMap<Int, HashMap<Int, Array<Move>>> {
+    let res = hashmap<Int, HashMap<Int, Array<Move>>>();
+
+    res.add(0, hashmap<Int, Array<Move>>()); // Pawn
+    res.add(1, hashmap<Int, Array<Move>>()); // Rook
+    res.add(2, hashmap<Int, Array<Move>>()); // Knight
+    res.add(3, hashmap<Int, Array<Move>>()); // Bishop
+    res.add(4, hashmap<Int, Array<Move>>()); // Queen
+    res.add(5, hashmap<Int, Array<Move>>()); // King
+
+    /*
+        Pawn moves
+    */
+
+    let pawn = res.get(0.mut()).as<@HashMap<Int, Array<Move>>>();
+
+    for mov in pawn_moves(*white) {
+        let mask = bitboard_from_coords(*mov.from_row(), *mov.from_col());
+        
+        if !pawn.contains(mask) {
+            pawn.add(*mask, arr<Move>());
+        }
+
+        pawn.get(mask).as<@Array<Move>>().push(move(mov));
+    }
+
+    /*
+        Rook moves
+    */
+
+    let rook = res.get(1.mut()).as<@HashMap<Int, Array<Move>>>();
+
+    for mov in rook_moves() {
+        let mask = bitboard_from_coords(*mov.from_row(), *mov.from_col());
+        
+        if !rook.contains(mask) {
+            rook.add(*mask, arr<Move>());
+        }
+
+        rook.get(mask).as<@Array<Move>>().push(move(mov));
+    }
+
+    /*
+        Knight moves
+    */
+
+    let knight = res.get(2.mut()).as<@HashMap<Int, Array<Move>>>();
+
+    for mov in knight_moves() {
+        let mask = bitboard_from_coords(*mov.from_row(), *mov.from_col());
+        
+        if !knight.contains(mask) {
+            knight.add(*mask, arr<Move>());
+        }
+
+        knight.get(mask).as<@Array<Move>>().push(move(mov));
+    }
+
+    /*
+        Bishop moves
+    */
+
+    let bishop = res.get(3.mut()).as<@HashMap<Int, Array<Move>>>();
+
+    for mov in bishop_moves() {
+        let mask = bitboard_from_coords(*mov.from_row(), *mov.from_col());
+        
+        if !bishop.contains(mask) {
+            bishop.add(*mask, arr<Move>());
+        }
+
+        bishop.get(mask).as<@Array<Move>>().push(move(mov));
+    }
+
+    /*
+        Queen moves
+    */
+
+    let queen = res.get(4.mut()).as<@HashMap<Int, Array<Move>>>();
+
+    for mov in queen_moves() {
+        let mask = bitboard_from_coords(*mov.from_row(), *mov.from_col());
+        
+        if !queen.contains(mask) {
+            queen.add(*mask, arr<Move>());
+        }
+
+        queen.get(mask).as<@Array<Move>>().push(move(mov));
+    }
+
+    /*
+        King moves
+    */
+
+    let king = res.get(5.mut()).as<@HashMap<Int, Array<Move>>>();
+
+    for mov in king_moves() {
+        let mask = bitboard_from_coords(*mov.from_row(), *mov.from_col());
+        
+        if !king.contains(mask) {
+            king.add(*mask, arr<Move>());
+        }
+
+        king.get(mask).as<@Array<Move>>().push(move(mov));
+    }
+
+    return move(res);
+}
+
+fn is_legal(mov: @Move, p_mask: @Int, o_mask: @Int) -> Bool {
+    if mov.piece() == 0 {
+        return is_pawn_move_legal(mov, p_mask, o_mask);
+    
+    } else if mov.piece() == 1 {
+        return is_rook_move_legal(mov, p_mask, o_mask);
+    
+    } else if mov.piece() == 2 {
+        return is_knight_move_legal(mov, p_mask, o_mask);
+    
+    } else if mov.piece() == 3 {
+        return is_bishop_move_legal(mov, p_mask, o_mask);
+    
+    } else if mov.piece() == 4 {
+        return is_queen_move_legal(mov, p_mask, o_mask);
+    
+    } else {
+        return is_king_move_legal(mov, p_mask, o_mask);
+    }
 }

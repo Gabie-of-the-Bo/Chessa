@@ -1,5 +1,6 @@
 import * from range;
 import * from string_extensions;
+import * from hashmap;
 
 import * from /bitboard;
 import * from /moves;
@@ -243,9 +244,11 @@ fn make_move(board: @Board, move: &Move) {
     if !board.white_moves() {
         board.move_counter() := board.move_counter() + 1;
     }
+    
+    board.halfmove_counter() := board.halfmove_counter() + 1;
 
     // Reset halfmove on pawn move
-    if move.piece() == 1 {
+    if move.piece() == 0 {
         board.halfmove_counter() := 0;
     }
 
@@ -293,7 +296,7 @@ fn make_move(board: @Board, move: &Move) {
             }
         }
 
-    } else {
+    } else if move.type() == 4 {
         // Castling
         if move.from_row() == 0 && move.from_col() == 0 {
             player.rook() := player.rook() ^ 5;
@@ -314,10 +317,59 @@ fn make_move(board: @Board, move: &Move) {
 
         player.king_cast() := false;
         player.queen_cast() := false;
+    
+    } else {
+        // Promotions
+        let from_bb = bitboard_from_coords(*move.from_row(), *move.from_col());
+        let to_bb = bitboard_from_coords(*move.to_row(), *move.to_col());
+
+        player.pawn() := player.pawn() ^ from_bb;
+
+        if move.type() == 5 {
+            player.queen() := player.queen() ^ to_bb;
+        
+        } else if move.type() == 6 {
+            player.rook() := player.rook() ^ to_bb;
+        
+        } else if move.type() == 7 {
+            player.bishop() := player.bishop() ^ to_bb;
+        
+        } else {
+            player.knight() := player.knight() ^ to_bb;
+        }
     }
 
     // Change turn
     board.white_moves() := !board.white_moves();
+}
+
+fn generate_pseudo_legal_moves(board: @Board, all_moves: @HashMap<Int, HashMap<Int, Array<Move>>>) -> Array<Move> {
+    let player = board.current_player();
+    let opponent = board.current_opponent();
+
+    let player_mask = player.demut().bitmask();
+    let opponent_mask = opponent.demut().bitmask();
+
+    let res = arr<Move>();
+
+    for piece_id in range(0, 6) {
+        let piece_moves = all_moves.get(piece_id).as<@HashMap<Int, Array<Move>>>();
+        let piece_cpy = *player.board_by_piece(*piece_id);
+
+        while piece_cpy != 0 {
+            let mask = 1 << first_set_bit(*piece_cpy);
+
+            for mov in piece_moves.get(mask).as<@Array<Move>>() {
+                if mov.is_legal(player_mask, opponent_mask) {
+                    res.push(*mov);
+                }
+            }
+
+            piece_cpy := piece_cpy ^ mask;
+        }
+    }
+
+    return move(res);
 }
 
 fn parse_move(str: String) -> Move {
@@ -329,6 +381,7 @@ fn parse_move(str: String) -> Move {
     return Move(
         array[0] - '0',
         array[1] - '0',
+        0,
         array[3] - '1',
         7 - col_from,
         array[5] - '1',

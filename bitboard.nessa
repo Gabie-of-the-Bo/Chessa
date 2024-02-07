@@ -13,3 +13,29 @@ fn get_pos(board: &Int, row: Int, col: Int) -> Int {
 fn first_set_bit(board: Int) -> Int {
     return round(log2(board & ((!board) + 1)));
 }
+
+fn get_sliding_mask(from_row: Int, from_col: Int, to_row: Int, to_col: Int) -> Int {
+    let row_diff = to_row - from_row;
+    let col_diff = to_col - from_col;
+    
+    if row_diff != 0 {
+        row_diff = row_diff / abs(row_diff);
+    }
+
+    if col_diff != 0 {
+        col_diff = col_diff / abs(col_diff);
+    }
+
+    let row = from_row + row_diff;
+    let col = from_col + col_diff;
+    let res = 0;
+
+    while row != to_row || col != to_col {
+        res := res | bitboard_from_coords(*row, *col);
+
+        row := row + row_diff;
+        col := col + col_diff;
+    }
+
+    return *res;
+}
