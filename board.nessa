@@ -360,7 +360,7 @@ fn generate_pseudo_legal_moves(board: @Board, all_moves: @HashMap<Int, HashMap<I
             let mask = 1 << first_set_bit(*piece_cpy);
 
             for mov in piece_moves.get(mask).as<@Array<Move>>() {
-                if mov.is_legal(player_mask, opponent_mask) {
+                if mov.is_legal(player_mask, opponent_mask, board.en_passant_mask()) {
                     res.push(*mov);
                 }
             }

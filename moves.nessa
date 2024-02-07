@@ -63,15 +63,32 @@ fn pawn_moves(white: Bool) -> Array<Move> {
                 let attack_mask = bitboard_from_coords(row + movement_dir, *col + 1);
                 res.push(Move(0, 2, *attack_mask, *row, *col, row + movement_dir, *col + 1));
             }
+
+            // En passant moves
+            if (white && row == 4) || (!white && row == 3) {
+                if col > 0 {
+                    let attack_mask = bitboard_from_coords(row + movement_dir, *col - 1);
+                    res.push(Move(0, 3, *attack_mask, *row, *col, row + movement_dir, *col - 1));
+                }
+
+                if col < 7 {
+                    let attack_mask = bitboard_from_coords(row + movement_dir, *col + 1);
+                    res.push(Move(0, 3, *attack_mask, *row, *col, row + movement_dir, *col + 1));
+                }
+            }
         }
     }
 
     return move(res);
 }
 
-fn is_pawn_move_legal(mov: @Move, p_mask: @Int, o_mask: @Int) -> Bool {
+fn is_pawn_move_legal(mov: @Move, p_mask: @Int, o_mask: @Int, en_passant_mask: @Int) -> Bool {
     if mov.type() == 2 {
         return o_mask & mov.mask() != 0;
+    }
+
+    if mov.type() == 3 {
+        return en_passant_mask & mov.mask() != 0;
     }
     
     return mov.mask() & (p_mask | o_mask) == 0;
@@ -371,9 +388,9 @@ fn get_all_moves(white: Bool) -> HashMap<Int, HashMap<Int, Array<Move>>> {
     return move(res);
 }
 
-fn is_legal(mov: @Move, p_mask: @Int, o_mask: @Int) -> Bool {
+fn is_legal(mov: @Move, p_mask: @Int, o_mask: @Int, en_passant_mask: @Int) -> Bool {
     if mov.piece() == 0 {
-        return is_pawn_move_legal(mov, p_mask, o_mask);
+        return is_pawn_move_legal(mov, p_mask, o_mask, en_passant_mask);
     
     } else if mov.piece() == 1 {
         return is_rook_move_legal(mov, p_mask, o_mask);
