@@ -430,7 +430,17 @@ fn get_controlling_mask(player: &Player, white: Bool, piece_mask: &Int, lookup_t
     return *res;
 }
 
-fn generate_pseudo_legal_moves(board: @Board, all_moves: @HashMap<Int, HashMap<Int, Array<Move>>>, lookup_tables: &Array<Array<Int>>) -> Array<Move> {
+fn is_king_in_check(player: &Player, opponent: &Player, white: Bool, lookup_tables: &Array<Array<Int>>) -> Bool {
+    let player_mask = player.bitmask();
+    let opponent_mask = opponent.bitmask();
+    let full_mask = player_mask | opponent_mask;
+
+    let opponent_attack = get_controlling_mask(opponent, *white, full_mask.demut(), lookup_tables);
+
+    return opponent_attack & player.king() != 0;
+}
+
+fn generate_legal_moves(board: @Board, all_moves: @HashMap<Int, HashMap<Int, Array<Move>>>, lookup_tables: &Array<Array<Int>>) -> Array<Move> {
     let player = board.current_player();
     let opponent = board.current_opponent();
 
@@ -451,7 +461,15 @@ fn generate_pseudo_legal_moves(board: @Board, all_moves: @HashMap<Int, HashMap<I
 
             for mov in piece_moves.get(mask).as<@Array<Move>>() {
                 if mov.is_pseudo_legal(player_mask, opponent_mask, board.en_passant_mask(), *player.queen_cast(), *player.king_cast(), opponent_attack.demut()) {
-                    res.push(*mov);
+                    let board_cpy = *board;
+                    board_cpy.make_move(mov.demut());
+
+                    let player_cpy = board_cpy.current_player();
+                    let opponent_cpy = board_cpy.current_opponent();
+
+                    if !is_king_in_check(opponent_cpy.demut(), player_cpy.demut(), !board.white_moves(), lookup_tables) {
+                        res.push(*mov);   
+                    }
                 }
             }
 

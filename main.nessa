@@ -10,16 +10,36 @@ let all_moves_white = get_all_moves(true);
 let all_moves_black = get_all_moves(false);
 let lookup_tables = get_controlling_lookup_tables();
 
-for i in range(0, 1000) {
+let finished = false; 
+
+while !finished {
     print(board.demut());
     input();
 
+    let moves = arr<Move>();
+
     if *board.white_moves() {
-        let moves = board.generate_pseudo_legal_moves(all_moves_white, lookup_tables.demut());
-        board.make_move(moves[rand_int(0, moves.len() - 1)].demut());
+        moves = board.generate_legal_moves(all_moves_white, lookup_tables.demut());
 
     } else {
-        let moves = board.generate_pseudo_legal_moves(all_moves_black, lookup_tables.demut());
+        moves = board.generate_legal_moves(all_moves_black, lookup_tables.demut());
+    }
+    
+    if moves.len() > 1 {
         board.make_move(moves[rand_int(0, moves.len() - 1)].demut());
+    
+    } else if moves.len() == 1 {
+        board.make_move(moves[0].demut());
+    
+    } else {
+        println("Game ended:");
+        print(board.demut());
+        finished = true;
+    }
+
+    if moves.len() > 0 && board.halfmove_counter() == 50 {
+        println("Draw:");
+        print(board.demut());
+        finished = true;
     }
 }
