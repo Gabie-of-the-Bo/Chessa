@@ -1,5 +1,5 @@
 fn bitboard_from_coords(row: Int, col: Int) -> Int {
-    return (1 << (8 * row)) << col;
+    return (1 << (row << 3)) << col;
 }
 
 fn set_pos(board: @Int, row: Int, col: Int) {
@@ -7,7 +7,7 @@ fn set_pos(board: @Int, row: Int, col: Int) {
 }
 
 fn get_pos(board: &Int, row: Int, col: Int) -> Int {
-    return 1 & ((board >> col) >> (row * 8));
+    return 1 & ((board >> col) >> (row << 3));
 }
 
 fn first_set_bit(board: Int) -> Int {

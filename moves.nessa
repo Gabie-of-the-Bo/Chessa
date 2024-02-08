@@ -22,6 +22,47 @@ class Move {
     to_col: Int;
 }
 
+fn print(m: &Move) {
+    if m.type() == 4 {
+        if m.from_col() == 0 {
+            print("King castling");
+        
+        } else {
+            print("Queen castling");
+        }
+
+    } else {
+        if m.piece() == 0 {
+            print("Pawn");
+        
+        } else if m.piece() == 1 {
+            print("Rook");
+        
+        } else if m.piece() == 2 {
+            print("Knight");
+        
+        } else if m.piece() == 3 {
+            print("Bishop");
+        
+        } else if m.piece() == 4 {
+            print("Queen");
+        
+        } else if m.piece() == 5 {
+            print("King");
+        }
+
+        print(" from ");
+        print(code_point_to_str((7 - m.from_col()) + 'a'));
+        print(m.from_row() + 1);
+
+        print(" to ");
+        print(code_point_to_str((7 - m.to_col()) + 'a'));
+        print(m.to_row() + 1);
+    }
+}
+
+implement Printable for &Move;
+
 fn pawn_moves(white: Bool) -> Array<Move> {
     let res = arr<Move>();
 
@@ -94,7 +135,7 @@ fn is_pawn_move_legal(mov: @Move, p_mask: @Int, o_mask: @Int, en_passant_mask: @
     return mov.mask() & (p_mask | o_mask) == 0;
 }
 
-fn rook_moves() -> Array<Move> {
+fn rook_moves(white: Bool) -> Array<Move> {
     let res = arr<Move>();
 
     for row in range(0, 8) {
@@ -111,14 +152,43 @@ fn rook_moves() -> Array<Move> {
         }
     }
 
+    // Castling
+    if *white {
+        res.push(Move(1, 4, 14, 0, 0, 0, 0));                   // BR
+        res.push(Move(1, 4, 56, 0, 7, 0, 0));                   // BL
+    
+    } else {
+        res.push(Move(1, 4, 1008806316530991104, 7, 0, 0, 0));  // TR
+        res.push(Move(1, 4, 4035225266123964416, 7, 7, 0, 0));  // TL
+    }
+
     return move(res);
 }
 
-fn is_rook_move_legal(mov: @Move, p_mask: @Int, o_mask: @Int) -> Bool {
-    // TODO: castling
+fn is_rook_move_legal(mov: @Move, p_mask: @Int, o_mask: @Int, queen_cast: Bool, king_cast: Bool, attack_mask: &Int) -> Bool {
+    if mov.type() == 4 {
+        if mov.from_col() == 0 && mov.from_row() == 0 {
+            return king_cast &&                     // Castling rights
+                   mov.mask() & attack_mask == 0 && // No check 
+                   6 & (o_mask | p_mask) == 0;      // Empty spaces 
+        
+        } else if mov.from_col() == 7 && mov.from_row() == 0 {
+            return queen_cast &&                    // Castling rights
+                   mov.mask() & attack_mask == 0 && // No check 
+                   112 & (o_mask | p_mask) == 0;    // Empty spaces 
+        
+        } else if mov.from_col() == 0 && mov.from_row() == 7 {
+            return king_cast &&                                 // Castling rights
+                   mov.mask() & attack_mask == 0 &&             // No check 
+                   432345564227567616 & (o_mask | p_mask) == 0; // Empty spaces 
+        
+        } else {
+            return queen_cast &&                                 // Castling rights
+                   mov.mask() & attack_mask == 0 &&              // No check 
+                   8070450532247928832 & (o_mask | p_mask) == 0; // Empty spaces 
+        }
 
-    // Cannot move to a square with a piece you have
-    if p_mask & bitboard_from_coords(*mov.to_row(), *mov.to_col()) != 0 {
+    } else if p_mask & bitboard_from_coords(*mov.to_row(), *mov.to_col()) != 0 {
         return false;
     }
     
@@ -311,7 +381,7 @@ fn get_all_moves(white: Bool) -> HashMap<Int, HashMap<Int, Array<Move>>> {
 
     let rook = res.get(1.mut()).as<@HashMap<Int, Array<Move>>>();
 
-    for mov in rook_moves() {
+    for mov in rook_moves(*white) {
         let mask = bitboard_from_coords(*mov.from_row(), *mov.from_col());
         
         if !rook.contains(mask) {
@@ -388,12 +458,12 @@ fn get_all_moves(white: Bool) -> HashMap<Int, HashMap<Int, Array<Move>>> {
     return move(res);
 }
 
-fn is_legal(mov: @Move, p_mask: @Int, o_mask: @Int, en_passant_mask: @Int) -> Bool {
+fn is_pseudo_legal(mov: @Move, p_mask: @Int, o_mask: @Int, en_passant_mask: @Int, queen_cast: Bool, king_cast: Bool, attack_mask: &Int) -> Bool {
     if mov.piece() == 0 {
         return is_pawn_move_legal(mov, p_mask, o_mask, en_passant_mask);
     
     } else if mov.piece() == 1 {
-        return is_rook_move_legal(mov, p_mask, o_mask);
+        return is_rook_move_legal(mov, p_mask, o_mask, *queen_cast, *king_cast, attack_mask);
     
     } else if mov.piece() == 2 {
         return is_knight_move_legal(mov, p_mask, o_mask);
@@ -407,4 +477,188 @@ fn is_legal(mov: @Move, p_mask: @Int, o_mask: @Int, en_passant_mask: @Int) -> Bo
     } else {
         return is_king_move_legal(mov, p_mask, o_mask);
     }
+}
+
+/*
+    Attack masks
+*/
+
+fn get_pawn_attack_mask(row: Int, col: Int, white: Bool) -> Int {
+    // En passant is kind of a problem here
+    let res = 0;
+
+    let movement_dir = 1;
+
+    if !white {
+        movement_dir := -1;
+    }
+
+    if col > 0 {
+        res := res | bitboard_from_coords(row + movement_dir, *col - 1);
+    }
+
+    if col < 7 {
+        res := res | bitboard_from_coords(row + movement_dir, *col + 1);
+    }
+
+    return *res;
+}
+
+fn get_knight_attack_mask(row: Int, col: Int) -> Int {
+    let res = 0;
+
+    let offsets = arr<(Int, Int)>();
+
+    offsets.push((1, 2));
+    offsets.push((2, 1));
+    offsets.push((-1, -2));
+    offsets.push((-2, -1));
+    offsets.push((-1, 2));
+    offsets.push((-2, 1));
+    offsets.push((1, -2));
+    offsets.push((2, -1));
+
+    for offset in offsets {
+        let off_row = offset.get_0();
+        let off_col = offset.get_1();
+
+        let target_row = row + off_row;
+        let target_col = col + off_col;
+
+        if target_row >= 0 && target_row < 8 && target_col >= 0 && target_col < 8 {
+            res := res | bitboard_from_coords(*target_row, *target_col);
+        }
+    }
+
+    return *res;
+}
+
+fn get_king_attack_mask(row: Int, col: Int) -> Int {
+    let res = 0;
+
+    let offsets = arr<(Int, Int)>();
+
+    offsets.push((0, 1));
+    offsets.push((0, -1));
+    offsets.push((1, 0));
+    offsets.push((-1, 0));
+    offsets.push((1, 1));
+    offsets.push((1, -1));
+    offsets.push((-1, 1));
+    offsets.push((-1, -1));
+
+    for offset in offsets {
+        let off_row = offset.get_0();
+        let off_col = offset.get_1();
+
+        let target_row = row + off_row;
+        let target_col = col + off_col;
+
+        if target_row >= 0 && target_row < 8 && target_col >= 0 && target_col < 8 {
+            res := res | bitboard_from_coords(*target_row, *target_col);
+        }
+    }
+
+    return *res;
+}
+
+fn get_sliding_attack_mask(row: Int, col: Int, drow: Int, dcol: Int, piece_mask: &Int) -> Int {    
+    let res = 0;
+
+    row := row + drow;
+    col := col + dcol;
+
+    while row >= 0 && row <= 7 && col >= 0 && col <= 7 {
+        res := res | bitboard_from_coords(*row, *col);
+
+        if res & piece_mask != 0 {
+            return *res;
+        }
+
+        row := row + drow;
+        col := col + dcol;
+    }
+
+    return *res;
+}
+
+fn get_rook_attack_mask(row: Int, col: Int, piece_mask: &Int) -> Int {
+    return get_sliding_attack_mask(*row, *col, 1, 0, piece_mask) |
+           get_sliding_attack_mask(*row, *col, -1, 0, piece_mask) |
+           get_sliding_attack_mask(*row, *col, 0, 1, piece_mask) |
+           get_sliding_attack_mask(*row, *col, 0, -1, piece_mask);
+}
+
+fn get_bishop_attack_mask(row: Int, col: Int, piece_mask: &Int) -> Int {
+    return get_sliding_attack_mask(*row, *col, 1, 1, piece_mask) |
+           get_sliding_attack_mask(*row, *col, -1, 1, piece_mask) |
+           get_sliding_attack_mask(*row, *col, 1, -1, piece_mask) |
+           get_sliding_attack_mask(*row, *col, -1, -1, piece_mask);
+}
+
+fn get_queen_attack_mask(row: Int, col: Int, piece_mask: &Int) -> Int {
+    return get_sliding_attack_mask(*row, *col, 1, 0, piece_mask) |
+           get_sliding_attack_mask(*row, *col, -1, 0, piece_mask) |
+           get_sliding_attack_mask(*row, *col, 0, 1, piece_mask) |
+           get_sliding_attack_mask(*row, *col, 0, -1, piece_mask) |
+           get_sliding_attack_mask(*row, *col, 1, 1, piece_mask) |
+           get_sliding_attack_mask(*row, *col, -1, 1, piece_mask) |
+           get_sliding_attack_mask(*row, *col, 1, -1, piece_mask) |
+           get_sliding_attack_mask(*row, *col, -1, -1, piece_mask);
+}
+
+fn get_pawn_attack_lookup(white: Bool) -> Array<Int> {
+    let res = arr<Int>();
+
+    for i in range(0, 64) {
+        if i < 8 || i >= 56 {
+            res.push(0);
+
+        } else {
+            let row = i / 8;
+            let col = i % 8;
+
+            res.push(get_pawn_attack_mask(*row, *col, *white));
+        }
+    }
+
+    return move(res);
+}
+
+fn get_knight_attack_lookup() -> Array<Int> {
+    let res = arr<Int>();
+
+    for i in range(0, 64) {
+        let row = i / 8;
+        let col = i % 8;
+
+        res.push(get_knight_attack_mask(*row, *col));
+    }
+
+    return move(res);
+}
+
+fn get_king_attack_lookup() -> Array<Int> {
+    let res = arr<Int>();
+
+    for i in range(0, 64) {
+        let row = i / 8;
+        let col = i % 8;
+
+        res.push(get_king_attack_mask(*row, *col));
+    }
+
+    return move(res);
+}
+
+fn get_controlling_lookup_tables() -> Array<Array<Int>> {
+    let res = arr<Array<Int>>();
+    res.reserve(4);
+
+    res.push(get_pawn_attack_lookup(true));
+    res.push(get_pawn_attack_lookup(false));
+    res.push(get_knight_attack_lookup());
+    res.push(get_king_attack_lookup());
+
+    return move(res);
 }

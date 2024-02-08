@@ -343,12 +343,102 @@ fn make_move(board: @Board, move: &Move) {
     board.white_moves() := !board.white_moves();
 }
 
-fn generate_pseudo_legal_moves(board: @Board, all_moves: @HashMap<Int, HashMap<Int, Array<Move>>>) -> Array<Move> {
+fn get_controlling_mask(player: &Player, white: Bool, piece_mask: &Int, lookup_tables: &Array<Array<Int>>) -> Int {
+    let res = 0;
+    
+    let pawn_idx = 0;
+
+    if !white {
+        pawn_idx := 1;
+    }
+
+    /*
+        Pawn mask
+    */
+
+    let pawn_cpy = *player.pawn();
+    let pawn_lookup = lookup_tables[*pawn_idx];
+
+    while pawn_cpy != 0 {
+        let idx = first_set_bit(*pawn_cpy);
+        res := res | pawn_lookup[*idx];
+        pawn_cpy := pawn_cpy ^ (1 << idx);
+    }
+
+    /*
+        Knight mask
+    */
+
+    let knight_cpy = *player.knight();
+    let knight_lookup = lookup_tables[2];
+
+    while knight_cpy != 0 {
+        let idx = first_set_bit(*knight_cpy);
+        res := res | knight_lookup[*idx];
+        knight_cpy := knight_cpy ^ (1 << idx);
+    }
+
+    /*
+        King mask
+    */
+
+    let king_cpy = *player.king();
+    let king_lookup = lookup_tables[3];
+
+    while king_cpy != 0 {
+        let idx = first_set_bit(*king_cpy);
+        res := res | king_lookup[*idx];
+        king_cpy := king_cpy ^ (1 << idx);
+    }
+
+    /*
+        Rook mask
+    */    
+    
+    let rook_cpy = *player.rook();
+
+    while rook_cpy != 0 {
+        let idx = first_set_bit(*rook_cpy);
+        res := res | get_rook_attack_mask(idx / 8, idx % 8, piece_mask);
+        rook_cpy := rook_cpy ^ (1 << idx);
+    }
+
+    /*
+        Bishop mask
+    */    
+    
+    let bishop_cpy = *player.bishop();
+
+    while bishop_cpy != 0 {
+        let idx = first_set_bit(*bishop_cpy);
+        res := res | get_bishop_attack_mask(idx / 8, idx % 8, piece_mask);
+        bishop_cpy := bishop_cpy ^ (1 << idx);
+    }
+
+    /*
+        Queen mask
+    */    
+    
+    let queen_cpy = *player.queen();
+
+    while queen_cpy != 0 {
+        let idx = first_set_bit(*queen_cpy);
+        res := res | get_queen_attack_mask(idx / 8, idx % 8, piece_mask);
+        queen_cpy := queen_cpy ^ (1 << idx);
+    }
+
+    return *res;
+}
+
+fn generate_pseudo_legal_moves(board: @Board, all_moves: @HashMap<Int, HashMap<Int, Array<Move>>>, lookup_tables: &Array<Array<Int>>) -> Array<Move> {
     let player = board.current_player();
     let opponent = board.current_opponent();
 
     let player_mask = player.demut().bitmask();
     let opponent_mask = opponent.demut().bitmask();
+    let full_mask = player_mask | opponent_mask;
+
+    let opponent_attack = get_controlling_mask(opponent.demut(), !board.white_moves(), full_mask.demut(), lookup_tables);
 
     let res = arr<Move>();
 
@@ -360,7 +450,7 @@ fn generate_pseudo_legal_moves(board: @Board, all_moves: @HashMap<Int, HashMap<I
             let mask = 1 << first_set_bit(*piece_cpy);
 
             for mov in piece_moves.get(mask).as<@Array<Move>>() {
-                if mov.is_legal(player_mask, opponent_mask, board.en_passant_mask()) {
+                if mov.is_pseudo_legal(player_mask, opponent_mask, board.en_passant_mask(), *player.queen_cast(), *player.king_cast(), opponent_attack.demut()) {
                     res.push(*mov);
                 }
             }
