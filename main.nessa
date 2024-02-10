@@ -4,42 +4,43 @@ import * from /printing;
 import * from /board;
 import * from /moves;
 import * from /bitboard;
+import * from /game;
 
+//Board and flags
 let board = board_from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+let finished = false; 
+
+// Lookup tables
 let all_moves_white = get_all_moves(true);
 let all_moves_black = get_all_moves(false);
 let lookup_tables = get_controlling_lookup_tables();
 
-let finished = false; 
+// Bots
+let botW = RandomBot(lookup_tables.demut(), all_moves_white, all_moves_black);
+let botB = RandomBot(lookup_tables.demut(), all_moves_white, all_moves_black);
 
-while !finished {
-    print(board.demut());
-    input();
+let outcomes = arr<Int>();
 
-    let moves = arr<Move>();
+outcomes.push(0);
+outcomes.push(0);
+outcomes.push(0);
+outcomes.push(0);
 
-    if *board.white_moves() {
-        moves = board.generate_legal_moves(all_moves_white, lookup_tables.demut());
+for i in range(0, 100) {
+    print("Game ");
+    println(*i);
 
-    } else {
-        moves = board.generate_legal_moves(all_moves_black, lookup_tables.demut());
-    }
-    
-    if moves.len() > 1 {
-        board.make_move(moves[rand_int(0, moves.len() - 1)].demut());
-    
-    } else if moves.len() == 1 {
-        board.make_move(moves[0].demut());
-    
-    } else {
-        println("Game ended:");
-        print(board.demut());
-        finished = true;
-    }
+    let game = Game(*botW, *botB, *board);
+    let o = game.play(false, lookup_tables.demut());
 
-    if moves.len() > 0 && board.halfmove_counter() == 50 {
-        println("Draw:");
-        print(board.demut());
-        finished = true;
-    }
+    outcomes[*o] := outcomes[*o] + 1;
 }
+
+print("\nDraws: ");
+println(*outcomes[0]);
+print("Stalemate: ");
+println(*outcomes[1]);
+print("White wins: ");
+println(*outcomes[2]);
+print("Black wins: ");
+println(*outcomes[3]);

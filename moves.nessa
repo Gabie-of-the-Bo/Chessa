@@ -8,8 +8,11 @@ class Move {
     // In order: Pawn, rook, knight, bishop, queen, king
     piece: Int;
 
-    // In order: Normal, double pawn push, only capture, en passant, castling, prm. queen, prm. rook, prm. bishop, prm. knight
+    // In order: Normal, double pawn push, only capture, en passant, castling
     type: Int;
+
+    // In order: prm. queen, prm. rook, prm. bishop, prm. knight
+    promotion: Int;
 
     // Movement mask. Its meaning depends on the context
     mask: Int;
@@ -58,6 +61,19 @@ fn print(m: &Move) {
         print(" to ");
         print(code_point_to_str((7 - m.to_col()) + 'a'));
         print(m.to_row() + 1);
+
+        if m.promotion() == 1 {
+            print(" (Queen promotion)");
+        
+        } else if m.promotion() == 2 {
+            print(" (Rook promotion)");
+        
+        } else if m.promotion() == 3 {
+            print(" (Bishop promotion)");
+        
+        } else if m.promotion() == 4 {
+            print(" (Knight promotion)");
+        }
     }
 }
 
@@ -79,42 +95,64 @@ fn pawn_moves(white: Bool) -> Array<Move> {
             // Double mov in row 1
             if (white && row == 1) || (!white && row == 6) {
                 let to_mask_2 = bitboard_from_coords(*row + movement_dir * 2, *col);
-                res.push(Move(0, 1, to_mask | to_mask_2, *row, *col, row + movement_dir * 2, *col));
+                res.push(Move(0, 1, 0, to_mask | to_mask_2, *row, *col, row + movement_dir * 2, *col));
             }
 
             // Promotions
             if (white && row == 6) || (!white && row == 1) {
-                res.push(Move(0, 5, *to_mask, *row, *col, row + movement_dir, *col));
-                res.push(Move(0, 6, *to_mask, *row, *col, row + movement_dir, *col));
-                res.push(Move(0, 7, *to_mask, *row, *col, row + movement_dir, *col));
-                res.push(Move(0, 8, *to_mask, *row, *col, row + movement_dir, *col));
+                res.push(Move(0, 0, 1, *to_mask, *row, *col, row + movement_dir, *col));
+                res.push(Move(0, 0, 2, *to_mask, *row, *col, row + movement_dir, *col));
+                res.push(Move(0, 0, 3, *to_mask, *row, *col, row + movement_dir, *col));
+                res.push(Move(0, 0, 4, *to_mask, *row, *col, row + movement_dir, *col));
             
             } else {
                 // Simple move
-                res.push(Move(0, 0, *to_mask, *row, *col, row + movement_dir, *col));
+                res.push(Move(0, 0, 0, *to_mask, *row, *col, row + movement_dir, *col));
             }
 
             // Attack moves
             if col > 0 {
                 let attack_mask = bitboard_from_coords(row + movement_dir, *col - 1);
-                res.push(Move(0, 2, *attack_mask, *row, *col, row + movement_dir, *col - 1));
+
+                // Promotions
+                if (white && row == 6) || (!white && row == 1) {
+                    res.push(Move(0, 2, 1, *attack_mask, *row, *col, row + movement_dir, *col - 1));
+                    res.push(Move(0, 2, 2, *attack_mask, *row, *col, row + movement_dir, *col - 1));
+                    res.push(Move(0, 2, 3, *attack_mask, *row, *col, row + movement_dir, *col - 1));
+                    res.push(Move(0, 2, 4, *attack_mask, *row, *col, row + movement_dir, *col - 1));
+                
+                } else {
+                    // Simple move
+                    res.push(Move(0, 2, 0, *attack_mask, *row, *col, row + movement_dir, *col - 1));
+                }
             }
 
             if col < 7 {
                 let attack_mask = bitboard_from_coords(row + movement_dir, *col + 1);
-                res.push(Move(0, 2, *attack_mask, *row, *col, row + movement_dir, *col + 1));
+
+                // Promotions
+                if (white && row == 6) || (!white && row == 1) {
+                    res.push(Move(0, 2, 1, *attack_mask, *row, *col, row + movement_dir, *col + 1));
+                    res.push(Move(0, 2, 2, *attack_mask, *row, *col, row + movement_dir, *col + 1));
+                    res.push(Move(0, 2, 3, *attack_mask, *row, *col, row + movement_dir, *col + 1));
+                    res.push(Move(0, 2, 4, *attack_mask, *row, *col, row + movement_dir, *col + 1));
+                
+                } else {
+                    // Simple move
+                    res.push(Move(0, 2, 0, *attack_mask, *row, *col, row + movement_dir, *col + 1));
+                }
             }
 
             // En passant moves
             if (white && row == 4) || (!white && row == 3) {
                 if col > 0 {
                     let attack_mask = bitboard_from_coords(row + movement_dir, *col - 1);
-                    res.push(Move(0, 3, *attack_mask, *row, *col, row + movement_dir, *col - 1));
+                    res.push(Move(0, 3, 0, *attack_mask, *row, *col, row + movement_dir, *col - 1));
                 }
 
                 if col < 7 {
                     let attack_mask = bitboard_from_coords(row + movement_dir, *col + 1);
-                    res.push(Move(0, 3, *attack_mask, *row, *col, row + movement_dir, *col + 1));
+                    res.push(Move(0, 3, 0, *attack_mask, *row, *col, row + movement_dir, *col + 1));
                 }
             }
         }
@@ -142,11 +180,11 @@ fn rook_moves(white: Bool) -> Array<Move> {
         for col in range(0, 8) {
             for mov in range(0, 8) {
                 if mov != row {
-                    res.push(Move(1, 0, get_sliding_mask(*row, *col, *mov, *col), *row, *col, *mov, *col));
+                    res.push(Move(1, 0, 0, get_sliding_mask(*row, *col, *mov, *col), *row, *col, *mov, *col));
                 }
 
                 if mov != col {
-                    res.push(Move(1, 0, get_sliding_mask(*row, *col, *row, *mov), *row, *col, *row, *mov));
+                    res.push(Move(1, 0, 0, get_sliding_mask(*row, *col, *row, *mov), *row, *col, *row, *mov));
                 }
             }
         }
@@ -154,12 +192,12 @@ fn rook_moves(white: Bool) -> Array<Move> {
 
     // Castling
     if *white {
-        res.push(Move(1, 4, 14, 0, 0, 0, 0));                   // BR
-        res.push(Move(1, 4, 56, 0, 7, 0, 0));                   // BL
+        res.push(Move(1, 4, 0, 14, 0, 0, 0, 0));                   // BR
+        res.push(Move(1, 4, 0, 56, 0, 7, 0, 0));                   // BL
     
     } else {
-        res.push(Move(1, 4, 1008806316530991104, 7, 0, 0, 0));  // TR
-        res.push(Move(1, 4, 4035225266123964416, 7, 7, 0, 0));  // TL
+        res.push(Move(1, 4, 0, 1008806316530991104, 7, 0, 0, 0));  // TR
+        res.push(Move(1, 4, 0, 4035225266123964416, 7, 7, 0, 0));  // TL
     }
 
     return move(res);
@@ -218,7 +256,7 @@ fn knight_moves() -> Array<Move> {
                 let target_col = col + off_col;
 
                 if target_row >= 0 && target_row < 8 && target_col >= 0 && target_col < 8 {
-                    res.push(Move(2, 0, 0, *row, *col, *target_row, *target_col));
+                    res.push(Move(2, 0, 0, 0, *row, *col, *target_row, *target_col));
                 }
             }
         }
@@ -252,7 +290,7 @@ fn bishop_moves() -> Array<Move> {
                 let target_col = col + off_col;
 
                 if target_row >= 0 && target_row < 8 && target_col >= 0 && target_col < 8 {
-                    res.push(Move(3, 0, get_sliding_mask(*row, *col, *target_row, *target_col), *row, *col, *target_row, *target_col));
+                    res.push(Move(3, 0, 0, get_sliding_mask(*row, *col, *target_row, *target_col), *row, *col, *target_row, *target_col));
                 }
             }
         }
@@ -295,7 +333,7 @@ fn queen_moves() -> Array<Move> {
                 let target_col = col + off_col;
 
                 if target_row >= 0 && target_row < 8 && target_col >= 0 && target_col < 8 {
-                    res.push(Move(4, 0, get_sliding_mask(*row, *col, *target_row, *target_col), *row, *col, *target_row, *target_col));
+                    res.push(Move(4, 0, 0, get_sliding_mask(*row, *col, *target_row, *target_col), *row, *col, *target_row, *target_col));
                 }
             }
         }
@@ -336,7 +374,7 @@ fn king_moves() -> Array<Move> {
                 let target_col = col + off_col;
 
                 if target_row >= 0 && target_row < 8 && target_col >= 0 && target_col < 8 {
-                    res.push(Move(5, 0, 0, *row, *col, *target_row, *target_col));
+                    res.push(Move(5, 0, 0, 0, *row, *col, *target_row, *target_col));
                 }
             }
         }

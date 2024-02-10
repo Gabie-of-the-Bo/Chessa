@@ -253,11 +253,30 @@ fn make_move(board: @Board, move: &Move) {
     }
 
     // Simple move
-    if move.type() < 4 {
+    if move.type() != 4 {
         let from_bb = bitboard_from_coords(*move.from_row(), *move.from_col());
         let to_bb = bitboard_from_coords(*move.to_row(), *move.to_col());
 
-        affected_board := affected_board ^ (from_bb | to_bb);
+        // Promotions
+        if move.promotion() > 0 {
+            player.pawn() := player.pawn() ^ from_bb;
+
+            if move.promotion() == 1 {
+                player.queen() := player.queen() ^ to_bb;
+            
+            } else if move.promotion() == 2 {
+                player.rook() := player.rook() ^ to_bb;
+            
+            } else if move.promotion() == 3 {
+                player.bishop() := player.bishop() ^ to_bb;
+            
+            } else {
+                player.knight() := player.knight() ^ to_bb;
+            }
+
+        } else {
+            affected_board := affected_board ^ (from_bb | to_bb);
+        }
 
         let attack = *to_bb;
 
@@ -296,7 +315,7 @@ fn make_move(board: @Board, move: &Move) {
             }
         }
 
-    } else if move.type() == 4 {
+    } else {
         // Castling
         if move.from_row() == 0 && move.from_col() == 0 {
             player.rook() := player.rook() ^ 5;
@@ -317,26 +336,6 @@ fn make_move(board: @Board, move: &Move) {
 
         player.king_cast() := false;
         player.queen_cast() := false;
-    
-    } else {
-        // Promotions
-        let from_bb = bitboard_from_coords(*move.from_row(), *move.from_col());
-        let to_bb = bitboard_from_coords(*move.to_row(), *move.to_col());
-
-        player.pawn() := player.pawn() ^ from_bb;
-
-        if move.type() == 5 {
-            player.queen() := player.queen() ^ to_bb;
-        
-        } else if move.type() == 6 {
-            player.rook() := player.rook() ^ to_bb;
-        
-        } else if move.type() == 7 {
-            player.bishop() := player.bishop() ^ to_bb;
-        
-        } else {
-            player.knight() := player.knight() ^ to_bb;
-        }
     }
 
     // Change turn
@@ -458,7 +457,11 @@ fn generate_legal_moves(board: @Board, all_moves: @HashMap<Int, HashMap<Int, Arr
 
         while piece_cpy != 0 {
             let mask = 1 << first_set_bit(*piece_cpy);
-
+            // print("Before ");
+            // print(*piece_id);
+            // print(" ");
+            // print(first_set_bit(*piece_cpy));
+            // print(" ");
             for mov in piece_moves.get(mask).as<@Array<Move>>() {
                 if mov.is_pseudo_legal(player_mask, opponent_mask, board.en_passant_mask(), *player.queen_cast(), *player.king_cast(), opponent_attack.demut()) {
                     let board_cpy = *board;
@@ -472,6 +475,7 @@ fn generate_legal_moves(board: @Board, all_moves: @HashMap<Int, HashMap<Int, Arr
                     }
                 }
             }
+            //println("After");
 
             piece_cpy := piece_cpy ^ mask;
         }
@@ -480,21 +484,23 @@ fn generate_legal_moves(board: @Board, all_moves: @HashMap<Int, HashMap<Int, Arr
     return move(res);
 }
 
-fn parse_move(str: String) -> Move {
-    let array = str.utf8_array();
+// Draw, Stalemate, White wins, Black wins
+fn termination_reason(board: @Board, lookup_tables: &Array<Array<Int>>) -> Int {
+    if board.halfmove_counter() == 50 {
+        return 0;
+    }
 
-    let col_from = array[2] - 'a';
-    let col_to = array[4] - 'a';
+    let player = board.current_player();
+    let opponent = board.current_opponent();
 
-    return Move(
-        array[0] - '0',
-        array[1] - '0',
-        0,
-        array[3] - '1',
-        7 - col_from,
-        array[5] - '1',
-        7 - col_to
-    );
+    if is_king_in_check(player.demut(), opponent.demut(), *board.white_moves(), lookup_tables) {
+        return 2;
+    
+    } else if is_king_in_check(opponent.demut(), player.demut(), !board.white_moves(), lookup_tables) {
+        return 3;
+    }
+
+    return 1;
 }
 
 fn print(board: &Board) {

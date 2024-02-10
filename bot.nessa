@@ -1,0 +1,39 @@
+import * from /board;
+
+interface ChessBot {
+    fn move_piece(bot: @Self, board: @Board) -> Bool;
+}
+
+class RandomBot {
+    lookup_tables: &Array<Array<Int>>;
+    all_moves_white: @HashMap<Int, HashMap<Int, Array<Move>>>;
+    all_moves_black: @HashMap<Int, HashMap<Int, Array<Move>>>;
+}
+
+fn move_piece(bot: @RandomBot, board: @Board) -> Bool {
+    if board.halfmove_counter() == 50 {
+        return false;
+    }
+
+    let moves = arr<Move>();
+
+    if *board.white_moves() {
+        moves = board.generate_legal_moves(bot.all_moves_white(), bot.lookup_tables());
+
+    } else {
+        moves = board.generate_legal_moves(bot.all_moves_black(), bot.lookup_tables());
+    }
+
+    if moves.len() > 1 {
+        board.make_move(moves[rand_int(0, moves.len() - 1)].demut());
+        return true;
+    
+    } else if moves.len() == 1 {
+        board.make_move(moves[0].demut());
+        return true;
+    }
+
+    return false;
+}
+
+implement ChessBot for RandomBot;

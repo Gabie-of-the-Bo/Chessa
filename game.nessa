@@ -1,0 +1,27 @@
+import * from /bot;
+
+class Game<WhitePlayer, BlackPlayer> {
+    white_player: 'WhitePlayer [ChessBot];
+    black_player: 'BlackPlayer [ChessBot];
+    board: Board;
+}
+
+fn<A, B> play(game: @Game<'A, 'B>, verbose: Bool, lookup_tables: &Array<Array<Int>>) -> Int {
+    let finished = false;
+    
+    while !finished {
+        if *game.board().white_moves() {
+            finished = !game.white_player().move_piece(game.board());
+
+        } else {
+            finished = !game.black_player().move_piece(game.board());
+        }
+        
+        if finished && verbose {
+            print("Game ended like this:");
+            println(game.board().demut());
+        }
+    }
+
+    return 0;
+}
