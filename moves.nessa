@@ -25,6 +25,9 @@ class Move {
     to_col: Int;
 }
 
+type LookupTables = Array<Array<Int>>;
+type MovesTable = HashMap<Int, HashMap<Int, Array<Move>>>;
+
 fn print(m: &Move) {
     if m.type() == 4 {
         if m.from_col() == 0 {
@@ -387,7 +390,7 @@ fn is_king_move_legal(mov: @Move, p_mask: @Int, o_mask: @Int) -> Bool {
     return p_mask & bitboard_from_coords(*mov.to_row(), *mov.to_col()) == 0;
 }
 
-fn get_all_moves(white: Bool) -> HashMap<Int, HashMap<Int, Array<Move>>> {
+fn get_all_moves(white: Bool) -> MovesTable {
     let res = hashmap<Int, HashMap<Int, Array<Move>>>();
 
     res.add(0, hashmap<Int, Array<Move>>()); // Pawn

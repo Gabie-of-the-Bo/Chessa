@@ -109,7 +109,7 @@ fn board_from_fen(str: String) -> Board {
             if char >= 'a' && char <= 'h' {
                 en_passant_col = char - 'a';
 
-            } else if char >= '0' && char <= '1' {
+            } else if char >= '0' && char <= '9' {
                 en_passant_row = char - '1';
                 res.en_passant_mask() := bitboard_from_coords(*en_passant_row, 8 - en_passant_col);
             }
@@ -125,6 +125,130 @@ fn board_from_fen(str: String) -> Board {
     }
 
     return move(res);
+}
+
+fn to_fen(board: &Board) -> String {
+    let arr_board = arr<Array<String>>();
+
+    for i in range(0, 8) {
+        let row = arr<String>();
+
+        for j in range(0, 8) {
+            row.push(" ");
+        }
+        
+        arr_board.push(move(row));
+    }
+
+    let reps = arr<(&Int, String)>();
+
+    // White pieces
+    reps.push((board.white().pawn(), "P"));
+    reps.push((board.white().rook(), "R"));
+    reps.push((board.white().knight(), "N"));
+    reps.push((board.white().bishop(), "B"));
+    reps.push((board.white().queen(), "Q"));
+    reps.push((board.white().king(), "K"));
+
+    // Black pieces
+    reps.push((board.black().pawn(), "p"));
+    reps.push((board.black().rook(), "r"));
+    reps.push((board.black().knight(), "n"));
+    reps.push((board.black().bishop(), "b"));
+    reps.push((board.black().queen(), "q"));
+    reps.push((board.black().king(), "k"));
+
+    // Fill matrix
+    for piece in reps {
+        for row in range(0, 8) {
+            for col in range(0, 8) {
+                if piece.get_0().deref().get_pos(*row, *col) == 1 {
+                    arr_board[7 - row].set(*piece.get_1(), 7 - col);
+                }
+            }
+        }
+    }
+
+    let res = "";
+
+    // Pieces
+    for row in arr_board {
+        let row_str = "/";
+        let empty = 0;
+
+        if res.len() == 0 {
+            row_str = "";
+        }
+
+        for i in row {
+            if i == " " {
+                empty.inc();
+
+            } else {
+                if empty > 0 {
+                    row_str := row_str + empty.deref().to_string();
+                    empty = 0;
+                }
+
+                row_str := row_str + i;
+            }
+        }
+
+        if empty > 0 {
+            row_str := row_str + empty.deref().to_string();
+        }
+
+        res = res + row_str;
+    }
+
+    // Turn
+    if *board.white_moves() {
+        res = res + " w ";
+
+    } else {
+        res = res + " b ";
+    }
+
+    // Castling
+    if *board.white().king_cast() {
+        res = res + "K";
+    }
+
+    if *board.white().queen_cast() {
+        res = res + "Q";
+    }
+
+    if *board.black().king_cast() {
+        res = res + "k";
+    }
+
+    if *board.black().queen_cast() {
+        res = res + "q";
+    }
+
+    if !board.white().king_cast() && !board.white().queen_cast() && !board.black().king_cast() && !board.black().queen_cast() {
+        res = res + "-";
+    }
+
+    // En passant
+    if board.en_passant_mask() == 0 {
+        res = res + " -";
+    
+    } else {
+        let pos = first_set_bit(*board.en_passant_mask());
+        let row = (pos / 8) + 1;
+        let col = (7 - pos % 8) + 1 + 'a';
+
+        res = res + " ";
+        res = res + col.deref().code_point_to_str();
+        res = res + row.deref().to_string();
+    }
+    
+    // Turns
+    res = res + " " + board.halfmove_counter().deref().to_string();
+    res = res + " " + board.move_counter().deref().to_string();
+
+    return *res;
 }
 
 fn bitmask(p: &Player) -> Int {
@@ -342,7 +466,7 @@ fn make_move(board: @Board, move: &Move) {
     board.white_moves() := !board.white_moves();
 }
 
-fn get_controlling_mask(player: &Player, white: Bool, piece_mask: &Int, lookup_tables: &Array<Array<Int>>) -> Int {
+fn get_controlling_mask(player: &Player, white: Bool, piece_mask: &Int, lookup_tables: &LookupTables) -> Int {
     let res = 0;
     
     let pawn_idx = 0;
@@ -429,7 +553,7 @@ fn get_controlling_mask(player: &Player, white: Bool, piece_mask: &Int, lookup_t
     return *res;
 }
 
-fn is_king_in_check(player: &Player, opponent: &Player, white: Bool, lookup_tables: &Array<Array<Int>>) -> Bool {
+fn is_king_in_check(player: &Player, opponent: &Player, white: Bool, lookup_tables: &LookupTables) -> Bool {
     let player_mask = player.bitmask();
     let opponent_mask = opponent.bitmask();
     let full_mask = player_mask | opponent_mask;
@@ -439,7 +563,7 @@ fn is_king_in_check(player: &Player, opponent: &Player, white: Bool, lookup_tabl
     return opponent_attack & player.king() != 0;
 }
 
-fn generate_legal_moves(board: @Board, all_moves: @HashMap<Int, HashMap<Int, Array<Move>>>, lookup_tables: &Array<Array<Int>>) -> Array<Move> {
+fn generate_legal_moves(board: @Board, all_moves: @MovesTable, lookup_tables: &LookupTables) -> Array<Move> {
     let player = board.current_player();
     let opponent = board.current_opponent();
 
@@ -485,7 +609,7 @@ fn generate_legal_moves(board: @Board, all_moves: @HashMap<Int, HashMap<Int, Arr
 }
 
 // Draw, Stalemate, White wins, Black wins
-fn termination_reason(board: @Board, lookup_tables: &Array<Array<Int>>) -> Int {
+fn termination_reason(board: @Board, lookup_tables: &LookupTables) -> Int {
     if board.halfmove_counter() == 50 {
         return 0;
     }
@@ -501,6 +625,33 @@ fn termination_reason(board: @Board, lookup_tables: &Array<Array<Int>>) -> Int {
     }
 
     return 1;
+}
+
+fn perft(board: @Board, n: Int, all_white_moves: @MovesTable, all_black_moves: @MovesTable, lookup_tables: &LookupTables) -> Int {
+    let moves = arr<Move>();
+
+    if *board.white_moves() {
+        moves = board.generate_legal_moves(all_white_moves, lookup_tables);
+    
+    } else {
+        moves = board.generate_legal_moves(all_black_moves, lookup_tables);
+    }
+
+    if n == 1 {
+        return moves.len();
+    
+    } else {
+        let res = 0;
+
+        for m in moves {
+            let board_cpy = *board;
+            board_cpy.make_move(m.demut());
+
+            res := res + board_cpy.perft(n - 1, all_white_moves, all_black_moves, lookup_tables);
+        }
+
+        return *res;
+    }
 }
 
 fn print(board: &Board) {
