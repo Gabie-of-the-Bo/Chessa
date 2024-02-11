@@ -237,7 +237,7 @@ fn to_fen(board: &Board) -> String {
     } else {
         let pos = first_set_bit(*board.en_passant_mask());
         let row = (pos / 8) + 1;
-        let col = (7 - pos % 8) + 1 + 'a';
+        let col = (7 - pos % 8) + 'a';
 
         res = res + " ";
         res = res + col.deref().code_point_to_str();
@@ -416,6 +416,26 @@ fn make_move(board: @Board, move: &Move) {
             // Remove captured piece
             let capture_board = opponent.board_by_mask(*attack);
             capture_board := capture_board ^ attack;
+
+            // Castling
+            if capture_board == opponent.rook() {
+                if !board.white_moves() {
+                    if move.to_col() == 0 && move.to_row() == 0 {
+                        opponent.king_cast() := false;
+                    
+                    } else if move.to_col() == 7 && move.to_row() == 0 {
+                        opponent.queen_cast() := false;
+                    }
+
+                } else {
+                    if move.to_col() == 0 && move.to_row() == 7 {
+                        opponent.king_cast() := false;
+                    
+                    } else if move.to_col() == 7 && move.to_row() == 7 {
+                        opponent.queen_cast() := false;
+                    }
+                }
+            }
         }
 
         // Set en passant mask
@@ -431,11 +451,21 @@ fn make_move(board: @Board, move: &Move) {
 
         // Rook movement
         if move.piece() == 1 {
-            if from_bb == 1 {
-                player.king_cast() := false;
-            
+            if *board.white_moves() {
+                if move.from_col() == 0 && move.from_row() == 0 {
+                    player.king_cast() := false;
+                
+                } else if move.from_col() == 7 && move.from_row() == 0 {
+                    player.queen_cast() := false;
+                }
+
             } else {
-                player.queen_cast() := false;
+                if move.from_col() == 0 && move.from_row() == 7 {
+                    player.king_cast() := false;
+                
+                } else if move.from_col() == 7 && move.from_row() == 7 {
+                    player.queen_cast() := false;
+                }
             }
         }
 

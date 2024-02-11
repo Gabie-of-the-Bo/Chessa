@@ -7,7 +7,7 @@ import * from /bitboard;
 import * from /game;
 
 //Board and flags
-let board = board_from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+let board = board_from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -");
 let finished = false; 
 
 // Lookup tables
@@ -15,8 +15,15 @@ let all_moves_white = get_all_moves(true);
 let all_moves_black = get_all_moves(false);
 let lookup_tables = get_controlling_lookup_tables();
 
+for i in range(1, 5) {
+    print("Perft ");
+    print(*i);
+    print(": ");
+    println(perft(board, *i, all_moves_white, all_moves_black, lookup_tables.demut()));
+}
+
 // Bots
-let botW = RandomBot(lookup_tables.demut(), all_moves_white, all_moves_black);
+/*let botW = RandomBot(lookup_tables.demut(), all_moves_white, all_moves_black);
 let botB = RandomBot(lookup_tables.demut(), all_moves_white, all_moves_black);
 
 let outcomes = arr<Int>();
@@ -43,4 +50,4 @@ println(*outcomes[1]);
 print("White wins: ");
 println(*outcomes[2]);
 print("Black wins: ");
-println(*outcomes[3]);
+println(*outcomes[3]);*/
