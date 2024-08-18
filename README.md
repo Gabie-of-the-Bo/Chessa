@@ -1,2 +1,2 @@
-# Chessa
-Chess engine written in Nessa
+# RyChess
+Chess engine written in Ryna
