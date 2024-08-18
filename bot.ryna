@@ -11,17 +11,17 @@ class RandomBot {
 }
 
 fn move_piece(bot: @RandomBot, board: @Board) -> Bool {
-    if board.halfmove_counter() == 50 {
+    if board.halfmove_counter == 50 {
         return false;
     }
 
     let moves = arr<Move>();
 
-    if *board.white_moves() {
-        moves = board.generate_legal_moves(bot.all_moves_white(), bot.lookup_tables());
+    if *board.white_moves {
+        moves = board.generate_legal_moves(bot.all_moves_white, bot.lookup_tables);
 
     } else {
-        moves = board.generate_legal_moves(bot.all_moves_black(), bot.lookup_tables());
+        moves = board.generate_legal_moves(bot.all_moves_black, bot.lookup_tables);
     }
 
     if moves.len() > 1 {

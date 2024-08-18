@@ -1,4 +1,5 @@
 import * from hashmap;
+import * from array_extensions;
 
 import * from /printing;
 import * from /board;
@@ -6,8 +7,10 @@ import * from /moves;
 import * from /bitboard;
 import * from /game;
 
+let initial = time();
+
 //Board and flags
-let board = board_from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -");
+let board = board_from_fen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8");
 let finished = false; 
 
 // Lookup tables
@@ -15,12 +18,17 @@ let all_moves_white = get_all_moves(true);
 let all_moves_black = get_all_moves(false);
 let lookup_tables = get_controlling_lookup_tables();
 
-for i in range(1, 5) {
+for i in range(1, 4) {
     print("Perft ");
     print(*i);
     print(": ");
     println(perft(board, *i, all_moves_white, all_moves_black, lookup_tables.demut()));
 }
+
+let elapsed = time() - initial;
+
+print("Time: ");
+println(elapsed / 1000000000.0);
 
 // Bots
 /*let botW = RandomBot(lookup_tables.demut(), all_moves_white, all_moves_black);

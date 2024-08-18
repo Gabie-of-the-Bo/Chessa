@@ -89,20 +89,20 @@ fn board_from_fen(str: String) -> Board {
             }
         
         } else if state == 1 { // Current move
-            res.white_moves() := char == 'w';
+            res.white_moves := char == 'w';
         
         } else if state == 2 { // Castling
             if char == 'k' {
-                res.black().king_cast() := true;
+                res.black.king_cast := true;
             
             } else if char == 'q' {
-                res.black().queen_cast() := true;
+                res.black.queen_cast := true;
             
             } else if char == 'K' {
-                res.white().king_cast() := true;
+                res.white.king_cast := true;
             
             } else if char == 'Q' {
-                res.white().queen_cast() := true;
+                res.white.queen_cast := true;
             }
         
         } else if state == 3 {
@@ -111,16 +111,16 @@ fn board_from_fen(str: String) -> Board {
 
             } else if char >= '0' && char <= '9' {
                 en_passant_row = char - '1';
-                res.en_passant_mask() := bitboard_from_coords(*en_passant_row, 8 - en_passant_col);
+                res.en_passant_mask := bitboard_from_coords(*en_passant_row, 8 - en_passant_col);
             }
         
         } else if state == 4 {
             let offset = char - '0';
-            res.halfmove_counter() := res.halfmove_counter() * 10 + offset;
+            res.halfmove_counter := res.halfmove_counter * 10 + offset;
         
         } else if state == 5 {
             let offset = char - '0';
-            res.move_counter() := res.move_counter() * 10 + offset;
+            res.move_counter := res.move_counter * 10 + offset;
         }
     }
 
@@ -143,20 +143,20 @@ fn to_fen(board: &Board) -> String {
     let reps = arr<(&Int, String)>();
 
     // White pieces
-    reps.push((board.white().pawn(), "P"));
-    reps.push((board.white().rook(), "R"));
-    reps.push((board.white().knight(), "N"));
-    reps.push((board.white().bishop(), "B"));
-    reps.push((board.white().queen(), "Q"));
-    reps.push((board.white().king(), "K"));
+    reps.push((board.white.pawn, "P"));
+    reps.push((board.white.rook, "R"));
+    reps.push((board.white.knight, "N"));
+    reps.push((board.white.bishop, "B"));
+    reps.push((board.white.queen, "Q"));
+    reps.push((board.white.king, "K"));
 
     // Black pieces
-    reps.push((board.black().pawn(), "p"));
-    reps.push((board.black().rook(), "r"));
-    reps.push((board.black().knight(), "n"));
-    reps.push((board.black().bishop(), "b"));
-    reps.push((board.black().queen(), "q"));
-    reps.push((board.black().king(), "k"));
+    reps.push((board.black.pawn, "p"));
+    reps.push((board.black.rook, "r"));
+    reps.push((board.black.knight, "n"));
+    reps.push((board.black.bishop, "b"));
+    reps.push((board.black.queen, "q"));
+    reps.push((board.black.king, "k"));
 
     // Fill matrix
     for piece in reps {
@@ -202,7 +202,7 @@ fn to_fen(board: &Board) -> String {
     }
 
     // Turn
-    if *board.white_moves() {
+    if *board.white_moves {
         res = res + " w ";
 
     } else {
@@ -210,32 +210,32 @@ fn to_fen(board: &Board) -> String {
     }
 
     // Castling
-    if *board.white().king_cast() {
+    if *board.white.king_cast {
         res = res + "K";
     }
 
-    if *board.white().queen_cast() {
+    if *board.white.queen_cast {
         res = res + "Q";
     }
 
-    if *board.black().king_cast() {
+    if *board.black.king_cast {
         res = res + "k";
     }
 
-    if *board.black().queen_cast() {
+    if *board.black.queen_cast {
         res = res + "q";
     }
 
-    if !board.white().king_cast() && !board.white().queen_cast() && !board.black().king_cast() && !board.black().queen_cast() {
+    if !board.white.king_cast && !board.white.queen_cast && !board.black.king_cast && !board.black.queen_cast {
         res = res + "-";
     }
 
     // En passant
-    if board.en_passant_mask() == 0 {
+    if board.en_passant_mask == 0 {
         res = res + " -";
     
     } else {
-        let pos = first_set_bit(*board.en_passant_mask());
+        let pos = first_set_bit(*board.en_passant_mask);
         let row = (pos / 8) + 1;
         let col = (7 - pos % 8) + 'a';
 
@@ -245,111 +245,111 @@ fn to_fen(board: &Board) -> String {
     }
     
     // Turns
-    res = res + " " + board.halfmove_counter().deref().to_string();
-    res = res + " " + board.move_counter().deref().to_string();
+    res = res + " " + board.halfmove_counter.deref().to_string();
+    res = res + " " + board.move_counter.deref().to_string();
 
     return *res;
 }
 
 fn bitmask(p: &Player) -> Int {
-    return p.pawn() | p.rook() | p.knight() | 
-           p.bishop() | p.queen() | p.king();
+    return p.pawn | p.rook | p.knight | 
+           p.bishop | p.queen | p.king;
 }
 
 fn current_player(board: @Board) -> @Player {
-    if *board.white_moves() {
-        return board.white();
+    if *board.white_moves {
+        return board.white;
     }
 
-    return board.black();
+    return board.black;
 }
 
 fn current_opponent(board: @Board) -> @Player {
-    if *board.white_moves() {
-        return board.black();
+    if *board.white_moves {
+        return board.black;
     }
 
-    return board.white();
+    return board.white;
 }
 
 fn board_by_piece(player: @Player, piece: Int) -> @Int {
     if piece == 0 {
-        return player.pawn();
+        return player.pawn;
     
     } else if piece == 1 {
-        return player.rook();
+        return player.rook;
 
     } else if piece == 2 {
-        return player.knight();
+        return player.knight;
 
     } else if piece == 3 {
-        return player.bishop();
+        return player.bishop;
 
     } else if piece == 4 {
-        return player.queen();
+        return player.queen;
 
     } else {
-        return player.king();
+        return player.king;
     }
 }
 
 fn board_by_mask(player: @Player, mask: Int) -> @Int {
-    if mask & player.pawn() != 0 {
-        return player.pawn();
+    if mask & player.pawn != 0 {
+        return player.pawn;
     
-    } else if mask & player.rook() != 0 {
-        return player.rook();
+    } else if mask & player.rook != 0 {
+        return player.rook;
 
-    } else if mask & player.knight() != 0 {
-        return player.knight();
+    } else if mask & player.knight != 0 {
+        return player.knight;
 
-    } else if mask & player.bishop() != 0 {
-        return player.bishop();
+    } else if mask & player.bishop != 0 {
+        return player.bishop;
 
-    } else if mask & player.queen() != 0 {
-        return player.queen();
+    } else if mask & player.queen != 0 {
+        return player.queen;
 
     } else {
-        return player.king();
+        return player.king;
     }
 }
 
 fn board_by_letter(board: @Board, piece: Int) -> @Int {
     if piece == 'P' {
-        return board.white().pawn();
+        return board.white.pawn;
     
     } else if piece == 'R' {
-        return board.white().rook();
+        return board.white.rook;
 
     } else if piece == 'N' {
-        return board.white().knight();
+        return board.white.knight;
 
     } else if piece == 'B' {
-        return board.white().bishop();
+        return board.white.bishop;
 
     } else if piece == 'Q' {
-        return board.white().queen();
+        return board.white.queen;
 
     } else if piece == 'K' {
-        return board.white().king();
+        return board.white.king;
 
     } else if piece == 'p' {
-        return board.black().pawn();
+        return board.black.pawn;
     
     } else if piece == 'r' {
-        return board.black().rook();
+        return board.black.rook;
 
     } else if piece == 'n' {
-        return board.black().knight();
+        return board.black.knight;
 
     } else if piece == 'b' {
-        return board.black().bishop();
+        return board.black.bishop;
 
     } else if piece == 'q' {
-        return board.black().queen();
+        return board.black.queen;
 
     } else if piece == 'k' {
-        return board.black().king();
+        return board.black.king;
     }
 
     panic("Invalid letter");
@@ -360,42 +360,42 @@ fn board_by_letter(board: @Board, piece: Int) -> @Int {
 fn make_move(board: @Board, move: &Move) {
     let player = board.current_player();
     let opponent = board.current_opponent();
-    let affected_board = player.board_by_piece(*move.piece());
+    let affected_board = player.board_by_piece(*move.piece);
     
-    board.en_passant_mask() := 0;
+    board.en_passant_mask := 0;
 
     // Increase move counter
-    if !board.white_moves() {
-        board.move_counter() := board.move_counter() + 1;
+    if !board.white_moves {
+        board.move_counter := board.move_counter + 1;
     }
     
-    board.halfmove_counter() := board.halfmove_counter() + 1;
+    board.halfmove_counter := board.halfmove_counter + 1;
 
     // Reset halfmove on pawn move
-    if move.piece() == 0 {
-        board.halfmove_counter() := 0;
+    if move.piece == 0 {
+        board.halfmove_counter := 0;
     }
 
     // Simple move
-    if move.type() != 4 {
-        let from_bb = bitboard_from_coords(*move.from_row(), *move.from_col());
-        let to_bb = bitboard_from_coords(*move.to_row(), *move.to_col());
+    if move.type != 4 {
+        let from_bb = bitboard_from_coords(*move.from_row, *move.from_col);
+        let to_bb = bitboard_from_coords(*move.to_row, *move.to_col);
 
         // Promotions
-        if move.promotion() > 0 {
-            player.pawn() := player.pawn() ^ from_bb;
+        if move.promotion > 0 {
+            player.pawn := player.pawn ^ from_bb;
 
-            if move.promotion() == 1 {
-                player.queen() := player.queen() ^ to_bb;
+            if move.promotion == 1 {
+                player.queen := player.queen ^ to_bb;
             
-            } else if move.promotion() == 2 {
-                player.rook() := player.rook() ^ to_bb;
+            } else if move.promotion == 2 {
+                player.rook := player.rook ^ to_bb;
             
-            } else if move.promotion() == 3 {
-                player.bishop() := player.bishop() ^ to_bb;
+            } else if move.promotion == 3 {
+                player.bishop := player.bishop ^ to_bb;
             
             } else {
-                player.knight() := player.knight() ^ to_bb;
+                player.knight := player.knight ^ to_bb;
             }
 
         } else {
@@ -405,95 +405,95 @@ fn make_move(board: @Board, move: &Move) {
         let attack = *to_bb;
 
         // Delete en passant piece
-        if move.type() == 3  {
-            attack = bitboard_from_coords(*move.from_row(), *move.to_col());
+        if move.type == 3  {
+            attack = bitboard_from_coords(*move.from_row, *move.to_col);
         }
         
         // On capture
         if opponent.demut().bitmask() & attack != 0 {
-            board.halfmove_counter() := 0;
+            board.halfmove_counter := 0;
 
             // Remove captured piece
             let capture_board = opponent.board_by_mask(*attack);
             capture_board := capture_board ^ attack;
 
             // Castling
-            if capture_board == opponent.rook() {
-                if !board.white_moves() {
-                    if move.to_col() == 0 && move.to_row() == 0 {
-                        opponent.king_cast() := false;
+            if capture_board == opponent.rook {
+                if !board.white_moves {
+                    if move.to_col == 0 && move.to_row == 0 {
+                        opponent.king_cast := false;
                     
-                    } else if move.to_col() == 7 && move.to_row() == 0 {
-                        opponent.queen_cast() := false;
+                    } else if move.to_col == 7 && move.to_row == 0 {
+                        opponent.queen_cast := false;
                     }
 
                 } else {
-                    if move.to_col() == 0 && move.to_row() == 7 {
-                        opponent.king_cast() := false;
+                    if move.to_col == 0 && move.to_row == 7 {
+                        opponent.king_cast := false;
                     
-                    } else if move.to_col() == 7 && move.to_row() == 7 {
-                        opponent.queen_cast() := false;
+                    } else if move.to_col == 7 && move.to_row == 7 {
+                        opponent.queen_cast := false;
                     }
                 }
             }
         }
 
         // Set en passant mask
-        if move.type() == 1 {
-            board.en_passant_mask() := bitboard_from_coords((move.to_row() + move.from_row()) / 2, *move.to_col());
+        if move.type == 1 {
+            board.en_passant_mask := bitboard_from_coords((move.to_row + move.from_row) / 2, *move.to_col);
         }
 
         // King movement
-        if move.piece() == 5 {
-            player.king_cast() := false;
-            player.queen_cast() := false;
+        if move.piece == 5 {
+            player.king_cast := false;
+            player.queen_cast := false;
         }
 
         // Rook movement
-        if move.piece() == 1 {
-            if *board.white_moves() {
-                if move.from_col() == 0 && move.from_row() == 0 {
-                    player.king_cast() := false;
+        if move.piece == 1 {
+            if *board.white_moves {
+                if move.from_col == 0 && move.from_row == 0 {
+                    player.king_cast := false;
                 
-                } else if move.from_col() == 7 && move.from_row() == 0 {
-                    player.queen_cast() := false;
+                } else if move.from_col == 7 && move.from_row == 0 {
+                    player.queen_cast := false;
                 }
 
             } else {
-                if move.from_col() == 0 && move.from_row() == 7 {
-                    player.king_cast() := false;
+                if move.from_col == 0 && move.from_row == 7 {
+                    player.king_cast := false;
                 
-                } else if move.from_col() == 7 && move.from_row() == 7 {
-                    player.queen_cast() := false;
+                } else if move.from_col == 7 && move.from_row == 7 {
+                    player.queen_cast := false;
                 }
             }
         }
 
     } else {
         // Castling
-        if move.from_row() == 0 && move.from_col() == 0 {
-            player.rook() := player.rook() ^ 5;
-            player.king() := player.king() ^ 10;
+        if move.from_row == 0 && move.from_col == 0 {
+            player.rook := player.rook ^ 5;
+            player.king := player.king ^ 10;
         
-        } else if move.from_row() == 0 && move.from_col() == 7 {
-            player.rook() := player.rook() ^ 144;
-            player.king() := player.king() ^ 40;
+        } else if move.from_row == 0 && move.from_col == 7 {
+            player.rook := player.rook ^ 144;
+            player.king := player.king ^ 40;
         
-        } else if move.from_row() == 7 && move.from_col() == 0 {
-            player.rook() := player.rook() ^ 360287970189639680;
-            player.king() := player.king() ^ 720575940379279360;
+        } else if move.from_row == 7 && move.from_col == 0 {
+            player.rook := player.rook ^ 360287970189639680;
+            player.king := player.king ^ 720575940379279360;
         
-        } else if move.from_row() == 7 && move.from_col() == 7 {
-            player.rook() := player.rook() ^ 10376293541461622784;
-            player.king() := player.king() ^ 2882303761517117440;        
+        } else if move.from_row == 7 && move.from_col == 7 {
+            player.rook := player.rook ^ 10376293541461622784;
+            player.king := player.king ^ 2882303761517117440;        
         }
 
-        player.king_cast() := false;
-        player.queen_cast() := false;
+        player.king_cast := false;
+        player.queen_cast := false;
     }
 
     // Change turn
-    board.white_moves() := !board.white_moves();
+    board.white_moves := !board.white_moves;
 }
 
 fn get_controlling_mask(player: &Player, white: Bool, piece_mask: &Int, lookup_tables: &LookupTables) -> Int {
@@ -509,7 +509,7 @@ fn get_controlling_mask(player: &Player, white: Bool, piece_mask: &Int, lookup_t
         Pawn mask
     */
 
-    let pawn_cpy = *player.pawn();
+    let pawn_cpy = *player.pawn;
     let pawn_lookup = lookup_tables[*pawn_idx];
 
     while pawn_cpy != 0 {
@@ -522,7 +522,7 @@ fn get_controlling_mask(player: &Player, white: Bool, piece_mask: &Int, lookup_t
         Knight mask
     */
 
-    let knight_cpy = *player.knight();
+    let knight_cpy = *player.knight;
     let knight_lookup = lookup_tables[2];
 
     while knight_cpy != 0 {
@@ -535,7 +535,7 @@ fn get_controlling_mask(player: &Player, white: Bool, piece_mask: &Int, lookup_t
         King mask
     */
 
-    let king_cpy = *player.king();
+    let king_cpy = *player.king;
     let king_lookup = lookup_tables[3];
 
     while king_cpy != 0 {
@@ -548,7 +548,7 @@ fn get_controlling_mask(player: &Player, white: Bool, piece_mask: &Int, lookup_t
         Rook mask
     */    
     
-    let rook_cpy = *player.rook();
+    let rook_cpy = *player.rook;
 
     while rook_cpy != 0 {
         let idx = first_set_bit(*rook_cpy);
@@ -560,7 +560,7 @@ fn get_controlling_mask(player: &Player, white: Bool, piece_mask: &Int, lookup_t
         Bishop mask
     */    
     
-    let bishop_cpy = *player.bishop();
+    let bishop_cpy = *player.bishop;
 
     while bishop_cpy != 0 {
         let idx = first_set_bit(*bishop_cpy);
@@ -572,7 +572,7 @@ fn get_controlling_mask(player: &Player, white: Bool, piece_mask: &Int, lookup_t
         Queen mask
     */    
     
-    let queen_cpy = *player.queen();
+    let queen_cpy = *player.queen;
 
     while queen_cpy != 0 {
         let idx = first_set_bit(*queen_cpy);
@@ -590,7 +590,7 @@ fn is_king_in_check(player: &Player, opponent: &Player, white: Bool, lookup_tabl
 
     let opponent_attack = get_controlling_mask(opponent, *white, full_mask.demut(), lookup_tables);
 
-    return opponent_attack & player.king() != 0;
+    return opponent_attack & player.king != 0;
 }
 
 fn generate_legal_moves(board: @Board, all_moves: @MovesTable, lookup_tables: &LookupTables) -> Array<Move> {
@@ -601,7 +601,7 @@ fn generate_legal_moves(board: @Board, all_moves: @MovesTable, lookup_tables: &L
     let opponent_mask = opponent.demut().bitmask();
     let full_mask = player_mask | opponent_mask;
 
-    let opponent_attack = get_controlling_mask(opponent.demut(), !board.white_moves(), full_mask.demut(), lookup_tables);
+    let opponent_attack = get_controlling_mask(opponent.demut(), !board.white_moves, full_mask.demut(), lookup_tables);
 
     let res = arr<Move>();
 
@@ -617,14 +617,14 @@ fn generate_legal_moves(board: @Board, all_moves: @MovesTable, lookup_tables: &L
             // print(first_set_bit(*piece_cpy));
             // print(" ");
             for mov in piece_moves.get(mask).as<@Array<Move>>() {
-                if mov.is_pseudo_legal(player_mask, opponent_mask, board.en_passant_mask(), *player.queen_cast(), *player.king_cast(), opponent_attack.demut()) {
+                if mov.is_pseudo_legal(player_mask, opponent_mask, board.en_passant_mask, *player.queen_cast, *player.king_cast, opponent_attack.demut()) {
                     let board_cpy = *board;
                     board_cpy.make_move(mov.demut());
 
                     let player_cpy = board_cpy.current_player();
                     let opponent_cpy = board_cpy.current_opponent();
 
-                    if !is_king_in_check(opponent_cpy.demut(), player_cpy.demut(), !board.white_moves(), lookup_tables) {
+                    if !is_king_in_check(opponent_cpy.demut(), player_cpy.demut(), !board.white_moves, lookup_tables) {
                         res.push(*mov);   
                     }
                 }
@@ -640,17 +640,17 @@ fn generate_legal_moves(board: @Board, all_moves: @MovesTable, lookup_tables: &L
 
 // Draw, Stalemate, White wins, Black wins
 fn termination_reason(board: @Board, lookup_tables: &LookupTables) -> Int {
-    if board.halfmove_counter() == 50 {
+    if board.halfmove_counter == 50 {
         return 0;
     }
 
     let player = board.current_player();
     let opponent = board.current_opponent();
 
-    if is_king_in_check(player.demut(), opponent.demut(), *board.white_moves(), lookup_tables) {
+    if is_king_in_check(player.demut(), opponent.demut(), *board.white_moves, lookup_tables) {
         return 2;
     
-    } else if is_king_in_check(opponent.demut(), player.demut(), !board.white_moves(), lookup_tables) {
+    } else if is_king_in_check(opponent.demut(), player.demut(), !board.white_moves, lookup_tables) {
         return 3;
     }
 
@@ -660,7 +660,7 @@ fn termination_reason(board: @Board, lookup_tables: &LookupTables) -> Int {
 fn perft(board: @Board, n: Int, all_white_moves: @MovesTable, all_black_moves: @MovesTable, lookup_tables: &LookupTables) -> Int {
     let moves = arr<Move>();
 
-    if *board.white_moves() {
+    if *board.white_moves {
         moves = board.generate_legal_moves(all_white_moves, lookup_tables);
     
     } else {
@@ -690,7 +690,7 @@ fn print(board: &Board) {
     // Turn
     print("Turn: ");
     
-    if *board.white_moves() {
+    if *board.white_moves {
         println("White");
 
     } else {
@@ -700,30 +700,30 @@ fn print(board: &Board) {
     // Castling
     print("Castling: ");
 
-    if *board.white().queen_cast() {
+    if *board.white.queen_cast {
         print("Q");
     }
     
-    if *board.white().king_cast() {
+    if *board.white.king_cast {
         print("K");
     }
     
-    if *board.black().queen_cast() {
+    if *board.black.queen_cast {
         print("q");
     }
     
-    if *board.black().king_cast() {
+    if *board.black.king_cast {
         print("k");
     }
 
     // En passant
     print("\nEn passant: ");
     
-    if board.en_passant_mask() == 0 {
+    if board.en_passant_mask == 0 {
         print("-");
     
     } else {
-        let pos = first_set_bit(*board.en_passant_mask());
+        let pos = first_set_bit(*board.en_passant_mask);
 
         print(code_point_to_str((7 - pos % 8) + 'a'));
         print((pos / 8) + 1);
@@ -731,11 +731,11 @@ fn print(board: &Board) {
 
     // Halfmove
     print("\nHalfmoves: ");
-    print(*board.halfmove_counter());
+    print(*board.halfmove_counter);
 
     // Halfmove
     print("\nMoves: ");
-    print(*board.move_counter());
+    print(*board.move_counter);
 
     println("\n+--------+");    
 
@@ -753,20 +753,20 @@ fn print(board: &Board) {
     let reps = arr<(&Int, String)>();
 
     // White pieces
-    reps.push((board.white().pawn(), "P"));
-    reps.push((board.white().rook(), "R"));
-    reps.push((board.white().knight(), "N"));
-    reps.push((board.white().bishop(), "B"));
-    reps.push((board.white().queen(), "Q"));
-    reps.push((board.white().king(), "K"));
+    reps.push((board.white.pawn, "P"));
+    reps.push((board.white.rook, "R"));
+    reps.push((board.white.knight, "N"));
+    reps.push((board.white.bishop, "B"));
+    reps.push((board.white.queen, "Q"));
+    reps.push((board.white.king, "K"));
 
     // Black pieces
-    reps.push((board.black().pawn(), "p"));
-    reps.push((board.black().rook(), "r"));
-    reps.push((board.black().knight(), "n"));
-    reps.push((board.black().bishop(), "b"));
-    reps.push((board.black().queen(), "q"));
-    reps.push((board.black().king(), "k"));
+    reps.push((board.black.pawn, "p"));
+    reps.push((board.black.rook, "r"));
+    reps.push((board.black.knight, "n"));
+    reps.push((board.black.bishop, "b"));
+    reps.push((board.black.queen, "q"));
+    reps.push((board.black.king, "k"));
 
     // Fill matrix
     for piece in reps {
